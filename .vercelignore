@@ -1,0 +1,5 @@
+.venv
+fetch_data.py
+data.json
+__pycache__
+*.pyc

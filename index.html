@@ -1,0 +1,1329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Colorado Snowpack Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+<script src="data.js"></script>
+<style>
+:root {
+  --bg-deep: #0B1220;
+  --bg-card: #111D2E;
+  --bg-card-hover: #162538;
+  --border: #1E3048;
+  --text-primary: #E8EDF3;
+  --text-secondary: #8899AE;
+  --text-muted: #556677;
+  --ice: #7DD3FC;
+  --ice-dim: rgba(125, 211, 252, 0.15);
+  --ice-glow: rgba(125, 211, 252, 0.08);
+  --danger: #F87171;
+  --danger-dim: rgba(248, 113, 113, 0.15);
+  --amber: #FBBF24;
+  --amber-dim: rgba(251, 191, 36, 0.12);
+  --green: #4ADE80;
+  --green-dim: rgba(74, 222, 128, 0.12);
+  --envelope-outer: rgba(125, 211, 252, 0.06);
+  --envelope-inner: rgba(125, 211, 252, 0.12);
+  --font-display: 'Barlow Condensed', sans-serif;
+  --font-body: 'DM Sans', sans-serif;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  background: var(--bg-deep);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* Topographic background texture */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background:
+    repeating-conic-gradient(from 0deg at 50% 50%, transparent 0deg, rgba(125,211,252,0.01) 1deg, transparent 2deg) 0 0 / 400px 400px,
+    radial-gradient(ellipse at 20% 0%, rgba(125,211,252,0.04) 0%, transparent 60%),
+    radial-gradient(ellipse at 80% 100%, rgba(125,211,252,0.03) 0%, transparent 50%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.container {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 2rem 1.5rem 4rem;
+  position: relative;
+  z-index: 1;
+}
+
+/* Header */
+header {
+  margin-bottom: 2.5rem;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 1.5rem;
+}
+
+header h1 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 2.8rem;
+  letter-spacing: -0.02em;
+  text-transform: uppercase;
+  line-height: 1;
+  background: linear-gradient(135deg, var(--text-primary) 0%, var(--ice) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.header-meta {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  font-family: var(--font-body);
+  text-align: right;
+}
+
+.header-meta span { color: var(--text-secondary); }
+
+.water-year-badge {
+  display: inline-block;
+  background: var(--ice-dim);
+  color: var(--ice);
+  padding: 0.25rem 0.75rem;
+  border-radius: 2px;
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 0.85rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  margin-bottom: 0.5rem;
+}
+
+/* Hero Cards */
+.hero-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.hero-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 1.25rem 1.5rem;
+  position: relative;
+  overflow: hidden;
+  transition: background 0.2s;
+}
+
+.hero-card:hover { background: var(--bg-card-hover); }
+
+.hero-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+}
+
+.hero-card.deficit::before { background: var(--danger); }
+.hero-card.pct::before { background: var(--amber); }
+.hero-card.swe::before { background: var(--ice); }
+.hero-card.peak::before { background: var(--text-muted); }
+
+.hero-label {
+  font-family: var(--font-display);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 0.5rem;
+}
+
+.hero-value {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 2.8rem;
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+
+.hero-card.swe .hero-value { color: var(--ice); }
+.hero-card.deficit .hero-value { color: var(--danger); }
+.hero-card.pct .hero-value { color: var(--amber); }
+.hero-card.peak .hero-value { color: var(--text-primary); }
+
+.hero-unit {
+  font-size: 1.4rem;
+  font-weight: 400;
+  opacity: 0.6;
+}
+
+.hero-sub {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  margin-top: 0.4rem;
+}
+
+/* Main Chart Section */
+.chart-section {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.chart-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.chart-title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.3rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.chart-controls {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.chart-controls label {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.chart-controls input[type="checkbox"] {
+  accent-color: var(--ice);
+  width: 14px;
+  height: 14px;
+}
+
+.year-select {
+  background: var(--bg-deep);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 0.3rem 0.5rem;
+  font-size: 0.75rem;
+  font-family: var(--font-body);
+  max-width: 200px;
+}
+
+.chart-wrapper {
+  position: relative;
+  height: 420px;
+}
+
+/* Analysis Grid */
+.analysis-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.panel {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 1.5rem;
+}
+
+.panel-title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.1rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  margin-bottom: 1rem;
+  color: var(--text-primary);
+}
+
+/* Catch-up panel */
+.catchup-stat {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 0.7rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.catchup-stat:last-child { border-bottom: none; }
+
+.catchup-stat-label {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.catchup-stat-value {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.3rem;
+  letter-spacing: -0.01em;
+}
+
+.rate-compare {
+  margin-top: 1.25rem;
+  background: var(--bg-deep);
+  border-radius: 4px;
+  padding: 1rem;
+}
+
+.rate-bar-group {
+  margin-bottom: 0.75rem;
+}
+
+.rate-bar-group:last-child { margin-bottom: 0; }
+
+.rate-bar-label {
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+  margin-bottom: 0.3rem;
+  display: flex;
+  justify-content: space-between;
+}
+
+.rate-bar-track {
+  height: 20px;
+  background: rgba(255,255,255,0.04);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.rate-bar-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 1s ease-out;
+  min-width: 2px;
+}
+
+.rate-bar-fill.needed { background: var(--amber); }
+.rate-bar-fill.actual { background: var(--ice); }
+
+/* Forecast panel */
+.forecast-chart-wrapper {
+  height: 200px;
+  margin-bottom: 1rem;
+}
+
+.forecast-summary {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+
+.forecast-stat {
+  background: var(--bg-deep);
+  border-radius: 4px;
+  padding: 0.75rem;
+  text-align: center;
+}
+
+.forecast-stat-label {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 0.25rem;
+}
+
+.forecast-stat-value {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.5rem;
+}
+
+.forecast-note {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  margin-top: 0.75rem;
+  font-style: italic;
+}
+
+/* Basin Table */
+.basin-section {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 1.5rem;
+}
+
+.basin-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.basin-table th {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  text-align: left;
+  padding: 0.6rem 0.75rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.basin-table th:not(:first-child) { text-align: right; }
+
+.basin-table td {
+  padding: 0.7rem 0.75rem;
+  border-bottom: 1px solid rgba(30, 48, 72, 0.5);
+  color: var(--text-secondary);
+}
+
+.basin-table td:not(:first-child) {
+  text-align: right;
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.basin-table td:first-child {
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.basin-table tr:last-child td { border-bottom: none; }
+
+.basin-table tr:hover td { background: rgba(125, 211, 252, 0.03); }
+
+.pct-badge {
+  display: inline-block;
+  padding: 0.15rem 0.5rem;
+  border-radius: 2px;
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+
+.pct-badge.critical { background: var(--danger-dim); color: var(--danger); }
+.pct-badge.warning { background: var(--amber-dim); color: var(--amber); }
+.pct-badge.ok { background: var(--green-dim); color: var(--green); }
+
+/* Footer */
+footer {
+  margin-top: 2.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--border);
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  line-height: 1.7;
+}
+
+footer a {
+  color: var(--text-secondary);
+  text-decoration: none;
+}
+
+/* Loading state */
+.loading {
+  text-align: center;
+  padding: 3rem;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+/* View toggle buttons */
+.view-toggle {
+  display: inline-flex;
+  background: var(--bg-deep);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.view-toggle button {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-family: var(--font-display);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 0.4rem 0.85rem;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.view-toggle button:not(:last-child) {
+  border-right: 1px solid var(--border);
+}
+
+.view-toggle button.active {
+  background: var(--ice-dim);
+  color: var(--ice);
+}
+
+.view-toggle button:hover:not(.active) {
+  color: var(--text-secondary);
+}
+
+/* Responsive */
+@media (max-width: 900px) {
+  .hero-grid { grid-template-columns: repeat(2, 1fr); }
+  .analysis-grid { grid-template-columns: 1fr; }
+  .hero-value { font-size: 2.2rem; }
+  header h1 { font-size: 2rem; }
+}
+
+@media (max-width: 500px) {
+  .hero-grid { grid-template-columns: 1fr; }
+  .container { padding: 1rem; }
+  .chart-wrapper { height: 300px; }
+  .forecast-summary { grid-template-columns: 1fr; }
+}
+
+/* Legend overrides */
+.legend-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border);
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+}
+
+.legend-swatch {
+  width: 18px;
+  height: 3px;
+  border-radius: 1px;
+}
+
+.legend-swatch.dashed {
+  background: repeating-linear-gradient(90deg, currentColor 0px, currentColor 4px, transparent 4px, transparent 8px);
+  height: 2px;
+}
+
+.legend-swatch-area {
+  width: 18px;
+  height: 10px;
+  border-radius: 1px;
+  opacity: 0.6;
+}
+</style>
+</head>
+<body>
+
+<div class="container">
+  <header>
+    <div class="water-year-badge">Water Year <span id="wy"></span></div>
+    <div class="header-row">
+      <h1>Colorado Snowpack</h1>
+      <div class="header-meta">
+        <span id="station-count"></span> SNOTEL stations<br>
+        Data fetched: <span id="fetch-time"></span>
+      </div>
+    </div>
+  </header>
+
+  <section class="hero-grid" id="hero-cards"></section>
+
+  <section class="chart-section">
+    <div class="chart-header">
+      <div>
+        <div class="chart-title" id="chart-title">Total Snowpack (Cumulative SWE)</div>
+      </div>
+      <div class="chart-controls">
+        <div class="view-toggle">
+          <button class="active" id="btn-cumulative" onclick="setChartView('cumulative')">Total Snowpack</button>
+          <button id="btn-daily" onclick="setChartView('daily')">Daily Change</button>
+        </div>
+        <label>
+          <input type="checkbox" id="toggle-history">
+          Show historical years
+        </label>
+        <select id="year-select" class="year-select" multiple style="display:none;" size="5"></select>
+      </div>
+    </div>
+    <div class="chart-wrapper">
+      <canvas id="swe-chart"></canvas>
+    </div>
+    <div class="legend-row" id="chart-legend">
+      <div class="legend-item">
+        <span class="legend-swatch" style="background: var(--ice);"></span>
+        WY 2026 Actual
+      </div>
+      <div class="legend-item">
+        <span class="legend-swatch dashed" style="color: #94A3B8;"></span>
+        20-Year Median
+      </div>
+      <div class="legend-item">
+        <span class="legend-swatch" style="background: rgba(248, 113, 113, 0.4);"></span>
+        <span id="record-low-legend">Record Low</span>
+      </div>
+      <div class="legend-item">
+        <span class="legend-swatch dashed" style="color: var(--amber);"></span>
+        Catch-Up Pace
+      </div>
+      <div class="legend-item">
+        <span class="legend-swatch-area" style="background: var(--ice);"></span>
+        25th-75th Percentile
+      </div>
+      <div class="legend-item">
+        <span class="legend-swatch-area" style="background: var(--ice); opacity: 0.3;"></span>
+        10th-90th Percentile
+      </div>
+    </div>
+  </section>
+
+  <section class="analysis-grid">
+    <div class="panel" id="catchup-panel">
+      <div class="panel-title">Catch-Up Analysis</div>
+      <div id="catchup-stats"></div>
+      <div class="rate-compare" id="rate-compare"></div>
+    </div>
+    <div class="panel" id="forecast-panel">
+      <div class="panel-title">7-Day Mountain Forecast</div>
+      <div class="forecast-chart-wrapper">
+        <canvas id="forecast-chart"></canvas>
+      </div>
+      <div class="forecast-summary" id="forecast-summary"></div>
+      <div class="forecast-note" id="forecast-note"></div>
+    </div>
+  </section>
+
+  <section class="basin-section">
+    <div class="panel-title">Basin Breakdown</div>
+    <table class="basin-table">
+      <thead>
+        <tr>
+          <th>Basin</th>
+          <th>Stations</th>
+          <th>Current SWE</th>
+          <th>Median</th>
+          <th>% of Median</th>
+          <th>Deficit</th>
+        </tr>
+      </thead>
+      <tbody id="basin-tbody"></tbody>
+    </table>
+  </section>
+
+  <footer>
+    Snowpack data: NRCS SNOTEL AWDB REST API (119 stations, 1991-2020 medians via 20-year historical average) |
+    Forecast: Open-Meteo API |
+    SWE = Snow Water Equivalent (water content if snowpack melted) |
+    Snow-to-SWE conversion uses approximate 12:1 ratio
+  </footer>
+</div>
+
+<script>
+// ============================================================
+// Dashboard Initialization
+// ============================================================
+
+const S = DATA.summary;
+
+// -- Header --
+document.getElementById('wy').textContent = DATA.water_year;
+document.getElementById('station-count').textContent = DATA.stations.count;
+document.getElementById('fetch-time').textContent = new Date(DATA.generated_at).toLocaleDateString('en-US', {
+  month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit'
+});
+
+// -- Hero Cards --
+const heroHTML = [
+  { cls: 'swe', label: 'Total Snowpack', value: S.current_swe.toFixed(1), unit: ' in', sub: `SWE as of ${new Date(S.today + 'T12:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} (statewide mean)` },
+  { cls: 'deficit', label: 'Deficit', value: '-' + S.deficit_inches.toFixed(1), unit: ' in', sub: `vs ${S.median_swe_today.toFixed(1)} in median for today` },
+  { cls: 'pct', label: '% of Median', value: S.pct_of_median.toFixed(0), unit: '%', sub: S.pct_of_median < 60 ? 'Record-low territory' : 'Below normal' },
+  { cls: 'peak', label: 'Days to Peak', value: S.days_to_peak, unit: '', sub: `Median peak: ${new Date(S.median_peak_date + 'T12:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} (${S.median_peak_swe.toFixed(1)} in)` },
+].map(c => `
+  <div class="hero-card ${c.cls}">
+    <div class="hero-label">${c.label}</div>
+    <div class="hero-value">${c.value}<span class="hero-unit">${c.unit}</span></div>
+    <div class="hero-sub">${c.sub}</div>
+  </div>
+`).join('');
+document.getElementById('hero-cards').innerHTML = heroHTML;
+
+// ============================================================
+// Main SWE Chart
+// ============================================================
+
+function buildMainChart() {
+  const ctx = document.getElementById('swe-chart').getContext('2d');
+
+  // Envelope datasets — aligned by date string
+  const envDates = DATA.historical_envelope.dates;
+
+  const makeEnvDataset = (arr) =>
+    envDates.map((d, i) => arr[i] != null ? { x: d, y: arr[i] } : null).filter(Boolean);
+
+  // Current season
+  const currentPts = DATA.current_season.dates.map((d, i) => ({ x: d, y: DATA.current_season.swe[i] }));
+
+  // Full-season median
+  const medianPts = DATA.median_full_season.dates.map((d, i) => ({ x: d, y: DATA.median_full_season.median[i] }));
+
+  // Catchup projection
+  const catchupPts = DATA.catchup_projection.dates.map((d, i) => ({ x: d, y: DATA.catchup_projection.swe[i] }));
+
+  // Record low year — find it dynamically
+  let recordLowYear = null;
+  let recordLowPeak = Infinity;
+  for (const [yr, curve] of Object.entries(DATA.historical_years)) {
+    const peak = Math.max(...curve.swe);
+    if (peak < recordLowPeak) {
+      recordLowPeak = peak;
+      recordLowYear = yr;
+    }
+  }
+  const recordLowData = DATA.historical_years[recordLowYear];
+  const recordLowPts = recordLowData
+    ? recordLowData.dates.map((d, i) => ({ x: d, y: recordLowData.swe[i] }))
+    : [];
+
+  const datasets = [
+    // p90 (top of outer envelope)
+    {
+      label: 'p90',
+      data: makeEnvDataset(DATA.historical_envelope.p90),
+      borderColor: 'transparent',
+      backgroundColor: 'transparent',
+      fill: false,
+      pointRadius: 0,
+      order: 10,
+    },
+    // p10 fill to p90
+    {
+      label: '10th-90th Percentile',
+      data: makeEnvDataset(DATA.historical_envelope.p10),
+      borderColor: 'transparent',
+      backgroundColor: 'rgba(125, 211, 252, 0.05)',
+      fill: '-1',
+      pointRadius: 0,
+      order: 9,
+    },
+    // p75
+    {
+      label: 'p75',
+      data: makeEnvDataset(DATA.historical_envelope.p75),
+      borderColor: 'transparent',
+      backgroundColor: 'transparent',
+      fill: false,
+      pointRadius: 0,
+      order: 8,
+    },
+    // p25 fill to p75
+    {
+      label: '25th-75th Percentile',
+      data: makeEnvDataset(DATA.historical_envelope.p25),
+      borderColor: 'transparent',
+      backgroundColor: 'rgba(125, 211, 252, 0.10)',
+      fill: '-1',
+      pointRadius: 0,
+      order: 7,
+    },
+    // Median line
+    {
+      label: '20-Year Median',
+      data: medianPts,
+      borderColor: '#94A3B8',
+      borderDash: [6, 4],
+      borderWidth: 1.5,
+      fill: false,
+      pointRadius: 0,
+      tension: 0.2,
+      order: 5,
+    },
+    // Record low year
+    {
+      label: `WY ${recordLowYear} (Record Low)`,
+      data: recordLowPts,
+      borderColor: 'rgba(248, 113, 113, 0.4)',
+      borderWidth: 1.5,
+      fill: false,
+      pointRadius: 0,
+      tension: 0.15,
+      order: 4,
+    },
+    // Catch-up projection
+    {
+      label: 'Catch-Up Pace',
+      data: catchupPts,
+      borderColor: '#FBBF24',
+      borderDash: [5, 3],
+      borderWidth: 2,
+      fill: false,
+      pointRadius: 0,
+      order: 3,
+    },
+    // Current season (on top)
+    {
+      label: `WY ${DATA.water_year} Actual`,
+      data: currentPts,
+      borderColor: '#7DD3FC',
+      borderWidth: 2.5,
+      fill: false,
+      pointRadius: 0,
+      tension: 0.15,
+      order: 1,
+    },
+  ];
+
+  window.sweChart = new Chart(ctx, {
+    type: 'line',
+    data: { datasets },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: {
+        mode: 'index',
+        intersect: false,
+      },
+      scales: {
+        x: {
+          type: 'time',
+          time: {
+            unit: 'month',
+            displayFormats: { month: 'MMM' },
+          },
+          min: DATA.historical_envelope.dates[0],
+          max: DATA.historical_envelope.dates[DATA.historical_envelope.dates.length - 1],
+          grid: { color: 'rgba(255,255,255,0.04)' },
+          ticks: {
+            color: '#556677',
+            font: { family: 'Barlow Condensed', size: 12 },
+          },
+        },
+        y: {
+          beginAtZero: true,
+          title: {
+            display: true,
+            text: 'SWE (inches)',
+            color: '#556677',
+            font: { family: 'Barlow Condensed', size: 12 },
+          },
+          grid: { color: 'rgba(255,255,255,0.04)' },
+          ticks: {
+            color: '#556677',
+            font: { family: 'Barlow Condensed', size: 12 },
+          },
+        },
+      },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#111D2E',
+          borderColor: '#1E3048',
+          borderWidth: 1,
+          titleColor: '#E8EDF3',
+          bodyColor: '#8899AE',
+          titleFont: { family: 'Barlow Condensed', weight: '600' },
+          bodyFont: { family: 'DM Sans' },
+          padding: 12,
+          displayColors: true,
+          filter: (item) => !['p90', 'p75', '10th-90th Percentile', '25th-75th Percentile'].includes(item.dataset.label),
+          callbacks: {
+            title: (items) => {
+              if (!items.length) return '';
+              const d = new Date(items[0].parsed.x);
+              return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+            },
+            label: (ctx) => `${ctx.dataset.label}: ${ctx.parsed.y.toFixed(1)} in`,
+          },
+        },
+      },
+    },
+  });
+}
+
+// Compute record low year at top level for legend
+let RECORD_LOW_YEAR = null;
+let RECORD_LOW_PEAK = Infinity;
+for (const [yr, curve] of Object.entries(DATA.historical_years)) {
+  const peak = Math.max(...curve.swe);
+  if (peak < RECORD_LOW_PEAK) {
+    RECORD_LOW_PEAK = peak;
+    RECORD_LOW_YEAR = yr;
+  }
+}
+document.getElementById('record-low-legend').textContent = `WY ${RECORD_LOW_YEAR} Record Low (peak ${RECORD_LOW_PEAK.toFixed(1)} in)`;
+
+buildMainChart();
+
+// ============================================================
+// View Toggle: Cumulative vs Daily Change
+// ============================================================
+
+let currentView = 'cumulative';
+
+function computeDeltas(dates, values) {
+  // Compute day-over-day change. First day is 0.
+  const deltas = [0];
+  for (let i = 1; i < values.length; i++) {
+    deltas.push(values[i] - values[i - 1]);
+  }
+  return dates.map((d, i) => ({ x: d, y: Math.round(deltas[i] * 100) / 100 }));
+}
+
+function buildDailyChart() {
+  const ctx = document.getElementById('swe-chart').getContext('2d');
+
+  // Current season daily deltas
+  const currentDeltas = computeDeltas(DATA.current_season.dates, DATA.current_season.swe);
+
+  // Median daily deltas
+  const medianDeltas = computeDeltas(DATA.median_full_season.dates, DATA.median_full_season.median);
+
+  // Color bars: positive = ice, negative = danger
+  const barColors = currentDeltas.map(pt => pt.y >= 0 ? 'rgba(125, 211, 252, 0.6)' : 'rgba(248, 113, 113, 0.6)');
+  const barBorders = currentDeltas.map(pt => pt.y >= 0 ? 'rgba(125, 211, 252, 0.9)' : 'rgba(248, 113, 113, 0.9)');
+
+  const datasets = [
+    {
+      label: '20-Year Median Daily Change',
+      data: medianDeltas,
+      borderColor: '#94A3B8',
+      borderDash: [6, 4],
+      borderWidth: 1.5,
+      fill: false,
+      pointRadius: 0,
+      tension: 0.2,
+      type: 'line',
+      order: 1,
+    },
+    {
+      label: `WY ${DATA.water_year} Daily Change`,
+      data: currentDeltas,
+      backgroundColor: barColors,
+      borderColor: barBorders,
+      borderWidth: 1,
+      borderRadius: 1,
+      type: 'bar',
+      order: 2,
+    },
+  ];
+
+  window.sweChart = new Chart(ctx, {
+    type: 'bar',
+    data: { datasets },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      scales: {
+        x: {
+          type: 'time',
+          time: { unit: 'week', displayFormats: { week: 'MMM d' } },
+          min: DATA.current_season.dates[0],
+          max: DATA.current_season.dates[DATA.current_season.dates.length - 1],
+          grid: { color: 'rgba(255,255,255,0.04)' },
+          ticks: { color: '#556677', font: { family: 'Barlow Condensed', size: 12 } },
+        },
+        y: {
+          title: {
+            display: true,
+            text: 'Daily SWE Change (inches)',
+            color: '#556677',
+            font: { family: 'Barlow Condensed', size: 12 },
+          },
+          grid: { color: 'rgba(255,255,255,0.04)' },
+          ticks: { color: '#556677', font: { family: 'Barlow Condensed', size: 12 } },
+        },
+      },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#111D2E',
+          borderColor: '#1E3048',
+          borderWidth: 1,
+          titleColor: '#E8EDF3',
+          bodyColor: '#8899AE',
+          titleFont: { family: 'Barlow Condensed', weight: '600' },
+          bodyFont: { family: 'DM Sans' },
+          padding: 12,
+          callbacks: {
+            title: (items) => {
+              if (!items.length) return '';
+              const d = new Date(items[0].parsed.x);
+              return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+            },
+            label: (ctx) => {
+              const v = ctx.parsed.y;
+              const sign = v >= 0 ? '+' : '';
+              return `${ctx.dataset.label}: ${sign}${v.toFixed(2)} in`;
+            },
+          },
+        },
+      },
+    },
+  });
+}
+
+function setChartView(view) {
+  if (view === currentView) return;
+  currentView = view;
+
+  // Update button states
+  document.getElementById('btn-cumulative').classList.toggle('active', view === 'cumulative');
+  document.getElementById('btn-daily').classList.toggle('active', view === 'daily');
+
+  // Destroy old chart
+  if (window.sweChart) window.sweChart.destroy();
+
+  // Rebuild
+  if (view === 'cumulative') {
+    document.getElementById('chart-title').textContent = 'Total Snowpack (Cumulative SWE)';
+    document.getElementById('chart-legend').style.display = 'flex';
+    document.getElementById('toggle-history').parentElement.style.display = '';
+    buildMainChart();
+    updateHistoricalYears();
+  } else {
+    document.getElementById('chart-title').textContent = 'Daily SWE Change';
+    document.getElementById('chart-legend').innerHTML = `
+      <div class="legend-item">
+        <span class="legend-swatch-area" style="background: var(--ice);"></span>
+        WY 2026 Daily Gain
+      </div>
+      <div class="legend-item">
+        <span class="legend-swatch-area" style="background: var(--danger);"></span>
+        WY 2026 Daily Loss
+      </div>
+      <div class="legend-item">
+        <span class="legend-swatch dashed" style="color: #94A3B8;"></span>
+        20-Year Median Daily Change
+      </div>
+    `;
+    document.getElementById('chart-legend').style.display = 'flex';
+    document.getElementById('toggle-history').parentElement.style.display = 'none';
+    document.getElementById('year-select').style.display = 'none';
+    buildDailyChart();
+  }
+}
+
+// Historical year toggle
+const histToggle = document.getElementById('toggle-history');
+const yearSelect = document.getElementById('year-select');
+
+const years = Object.keys(DATA.historical_years).sort();
+years.forEach(yr => {
+  const opt = document.createElement('option');
+  opt.value = yr;
+  opt.textContent = `WY ${yr}`;
+  if (['2012', '2018', '2025'].includes(yr)) opt.selected = true;
+  yearSelect.appendChild(opt);
+});
+
+const histColors = [
+  '#4B5563', '#6B7280', '#9CA3AF', '#374151', '#5C6370',
+  '#485563', '#6A737D', '#8B949E', '#3D4451', '#586069',
+  '#4B5E6D', '#5A6B7A', '#697C8B', '#3F5261', '#4E6170',
+  '#445566', '#556677', '#667788', '#384858', '#475868',
+];
+
+function updateHistoricalYears() {
+  if (currentView !== 'cumulative') return;
+
+  window.sweChart.data.datasets = window.sweChart.data.datasets.filter(
+    ds => !ds._isHistorical
+  );
+
+  if (histToggle.checked) {
+    yearSelect.style.display = 'block';
+    const selected = Array.from(yearSelect.selectedOptions).map(o => o.value);
+    selected.forEach((yr, i) => {
+      const yd = DATA.historical_years[yr];
+      if (!yd) return;
+      const pts = yd.dates.map((d, j) => ({ x: d, y: yd.swe[j] }));
+      window.sweChart.data.datasets.push({
+        label: `WY ${yr}`,
+        data: pts,
+        borderColor: histColors[i % histColors.length],
+        borderWidth: 1,
+        fill: false,
+        pointRadius: 0,
+        tension: 0.15,
+        order: 6,
+        _isHistorical: true,
+      });
+    });
+  } else {
+    yearSelect.style.display = 'none';
+  }
+  window.sweChart.update();
+}
+
+histToggle.addEventListener('change', updateHistoricalYears);
+yearSelect.addEventListener('change', updateHistoricalYears);
+
+// ============================================================
+// Catch-Up Panel
+// ============================================================
+
+const rateMultiple = S.actual_daily_rate_30d > 0
+  ? (S.daily_rate_needed / S.actual_daily_rate_30d).toFixed(1)
+  : '--';
+
+document.getElementById('catchup-stats').innerHTML = `
+  <div class="catchup-stat">
+    <span class="catchup-stat-label">SWE needed to reach median peak</span>
+    <span class="catchup-stat-value" style="color: var(--amber);">${S.swe_needed_for_peak.toFixed(1)}<span class="hero-unit"> in</span></span>
+  </div>
+  <div class="catchup-stat">
+    <span class="catchup-stat-label">Daily rate needed</span>
+    <span class="catchup-stat-value">${S.daily_rate_needed.toFixed(3)}<span class="hero-unit"> in/day</span></span>
+  </div>
+  <div class="catchup-stat">
+    <span class="catchup-stat-label">Actual 30-day rate</span>
+    <span class="catchup-stat-value" style="color: var(--ice);">${S.actual_daily_rate_30d.toFixed(3)}<span class="hero-unit"> in/day</span></span>
+  </div>
+  <div class="catchup-stat">
+    <span class="catchup-stat-label">Rate multiple needed</span>
+    <span class="catchup-stat-value" style="color: var(--danger);">${rateMultiple}<span class="hero-unit">x</span></span>
+  </div>
+  <div class="catchup-stat">
+    <span class="catchup-stat-label">% of normal remaining needed</span>
+    <span class="catchup-stat-value" style="color: var(--danger);">${S.pct_of_normal_remaining_needed.toFixed(0)}<span class="hero-unit">%</span></span>
+  </div>
+`;
+
+// Rate comparison bars
+const maxRate = Math.max(S.daily_rate_needed, S.actual_daily_rate_30d);
+const neededPct = maxRate > 0 ? (S.daily_rate_needed / maxRate) * 100 : 0;
+const actualPct = maxRate > 0 ? (S.actual_daily_rate_30d / maxRate) * 100 : 0;
+
+document.getElementById('rate-compare').innerHTML = `
+  <div class="rate-bar-group">
+    <div class="rate-bar-label">
+      <span>Needed pace</span>
+      <span>${S.daily_rate_needed.toFixed(3)} in/day</span>
+    </div>
+    <div class="rate-bar-track">
+      <div class="rate-bar-fill needed" style="width: ${neededPct}%;"></div>
+    </div>
+  </div>
+  <div class="rate-bar-group">
+    <div class="rate-bar-label">
+      <span>Actual 30-day pace</span>
+      <span>${S.actual_daily_rate_30d.toFixed(3)} in/day</span>
+    </div>
+    <div class="rate-bar-track">
+      <div class="rate-bar-fill actual" style="width: ${actualPct}%;"></div>
+    </div>
+  </div>
+`;
+
+// ============================================================
+// 7-Day Forecast (from Open-Meteo)
+// ============================================================
+
+async function loadForecast() {
+  const points = DATA.forecast_points;
+
+  try {
+    const promises = points.map(pt =>
+      fetch(`https://api.open-meteo.com/v1/forecast?latitude=${pt.lat}&longitude=${pt.lon}&daily=snowfall_sum,precipitation_sum,temperature_2m_min&forecast_days=7&timezone=America/Denver`)
+        .then(r => r.json())
+    );
+    const results = await Promise.all(promises);
+
+    const dates = results[0].daily.time;
+    const numDays = dates.length;
+
+    // Average snowfall and precipitation across mountain points
+    const avgSnowfall = new Array(numDays).fill(0);
+    const avgPrecip = new Array(numDays).fill(0);
+    const avgTempMin = new Array(numDays).fill(0);
+    let validCount = 0;
+
+    results.forEach(r => {
+      if (!r.daily) return;
+      validCount++;
+      for (let i = 0; i < numDays; i++) {
+        avgSnowfall[i] += (r.daily.snowfall_sum[i] || 0);
+        avgPrecip[i] += (r.daily.precipitation_sum[i] || 0);
+        avgTempMin[i] += (r.daily.temperature_2m_min[i] || 0);
+      }
+    });
+
+    if (validCount === 0) throw new Error('No forecast data');
+
+    for (let i = 0; i < numDays; i++) {
+      avgSnowfall[i] /= validCount;
+      avgPrecip[i] /= validCount;
+      avgTempMin[i] /= validCount;
+    }
+
+    // Convert snowfall from cm to inches
+    const snowfallInches = avgSnowfall.map(cm => cm / 2.54);
+
+    // Estimate SWE: use precipitation when temp < 2C, else use snowfall/12 ratio
+    const sweEstimate = dates.map((_, i) => {
+      if (avgTempMin[i] < 2) {
+        // Precipitation as mm -> inches of water (SWE)
+        return avgPrecip[i] / 25.4;
+      }
+      return snowfallInches[i] / 12;
+    });
+
+    const totalSnowfall = snowfallInches.reduce((a, b) => a + b, 0);
+    const totalSwe = sweEstimate.reduce((a, b) => a + b, 0);
+    const neededSwe7d = S.daily_rate_needed * 7;
+
+    // Render forecast bar chart
+    const fctx = document.getElementById('forecast-chart').getContext('2d');
+    new Chart(fctx, {
+      type: 'bar',
+      data: {
+        labels: dates.map(d => {
+          const dt = new Date(d + 'T12:00');
+          return dt.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+        }),
+        datasets: [{
+          label: 'Snowfall (in)',
+          data: snowfallInches,
+          backgroundColor: snowfallInches.map(v => v > 2 ? 'rgba(125, 211, 252, 0.7)' : 'rgba(125, 211, 252, 0.35)'),
+          borderColor: 'rgba(125, 211, 252, 0.9)',
+          borderWidth: 1,
+          borderRadius: 2,
+        }],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: '#111D2E',
+            borderColor: '#1E3048',
+            borderWidth: 1,
+            titleColor: '#E8EDF3',
+            bodyColor: '#8899AE',
+            titleFont: { family: 'Barlow Condensed' },
+            bodyFont: { family: 'DM Sans' },
+            callbacks: {
+              label: (ctx) => `${ctx.parsed.y.toFixed(1)} inches snowfall`,
+            },
+          },
+        },
+        scales: {
+          x: {
+            grid: { display: false },
+            ticks: {
+              color: '#556677',
+              font: { family: 'Barlow Condensed', size: 11 },
+              maxRotation: 45,
+            },
+          },
+          y: {
+            beginAtZero: true,
+            title: {
+              display: true,
+              text: 'Snowfall (in)',
+              color: '#556677',
+              font: { family: 'Barlow Condensed', size: 11 },
+            },
+            grid: { color: 'rgba(255,255,255,0.04)' },
+            ticks: {
+              color: '#556677',
+              font: { family: 'Barlow Condensed', size: 11 },
+            },
+          },
+        },
+      },
+    });
+
+    // Forecast summary stats
+    document.getElementById('forecast-summary').innerHTML = `
+      <div class="forecast-stat">
+        <div class="forecast-stat-label">7-Day Snowfall</div>
+        <div class="forecast-stat-value" style="color: var(--ice);">${totalSnowfall.toFixed(1)}<span class="hero-unit"> in</span></div>
+      </div>
+      <div class="forecast-stat">
+        <div class="forecast-stat-label">Est. SWE Added</div>
+        <div class="forecast-stat-value" style="color: ${totalSwe >= neededSwe7d * 0.5 ? 'var(--green)' : 'var(--amber)'};">${totalSwe.toFixed(2)}<span class="hero-unit"> in</span></div>
+      </div>
+      <div class="forecast-stat">
+        <div class="forecast-stat-label">Needed (7d at pace)</div>
+        <div class="forecast-stat-value">${neededSwe7d.toFixed(2)}<span class="hero-unit"> in</span></div>
+      </div>
+      <div class="forecast-stat">
+        <div class="forecast-stat-label">Forecast vs Need</div>
+        <div class="forecast-stat-value" style="color: ${totalSwe >= neededSwe7d ? 'var(--green)' : 'var(--danger)'};">${neededSwe7d > 0 ? (totalSwe / neededSwe7d * 100).toFixed(0) : '--'}<span class="hero-unit">%</span></div>
+      </div>
+    `;
+
+    document.getElementById('forecast-note').textContent =
+      `Averaged from ${validCount} mountain locations. SWE estimated from precipitation when min temp < 2C.`;
+
+  } catch (err) {
+    document.getElementById('forecast-panel').querySelector('.forecast-chart-wrapper').innerHTML =
+      `<div class="loading">Forecast unavailable: ${err.message}</div>`;
+  }
+}
+
+loadForecast();
+
+// ============================================================
+// Basin Table
+// ============================================================
+
+const basins = Object.entries(DATA.basins)
+  .sort((a, b) => a[1].pct_of_median - b[1].pct_of_median);
+
+const basinRows = basins.map(([name, b]) => {
+  const pctClass = b.pct_of_median < 50 ? 'critical' : b.pct_of_median < 70 ? 'warning' : 'ok';
+  return `
+    <tr>
+      <td>${name}</td>
+      <td>${b.station_count}</td>
+      <td>${b.current_swe.toFixed(1)} in</td>
+      <td>${b.median_swe_today.toFixed(1)} in</td>
+      <td><span class="pct-badge ${pctClass}">${b.pct_of_median.toFixed(0)}%</span></td>
+      <td style="color: var(--danger);">-${b.deficit_inches.toFixed(1)} in</td>
+    </tr>
+  `;
+}).join('');
+
+document.getElementById('basin-tbody').innerHTML = basinRows;
+
+</script>
+</body>
+</html>
