@@ -1,6 +1,10 @@
 name: Update Snowpack Data
 
 on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - 'data.js'
   schedule:
     # Run daily at 7 AM Mountain Time (2 PM UTC in winter, 1 PM UTC in summer)
     - cron: '0 14 * * *'
