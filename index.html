@@ -645,9 +645,27 @@ footer a {
     </table>
   </section>
 
+  <section class="basin-section">
+    <div class="panel-title">Basin Conditions (Temp, Wind, Soil Moisture)</div>
+    <table class="basin-table">
+      <thead>
+        <tr>
+          <th>Basin</th>
+          <th>Avg Temp (24h)</th>
+          <th>Avg Wind (24h)</th>
+          <th>Wind Dir (now)</th>
+          <th>Soil Moisture (0–1cm)</th>
+        </tr>
+      </thead>
+      <tbody id="basin-conditions-tbody">
+        <tr><td colspan="5" class="loading">Loading basin weather + soil conditions…</td></tr>
+      </tbody>
+    </table>
+  </section>
+
   <footer>
     Snowpack data: NRCS SNOTEL AWDB REST API (119 stations, 1991-2020 medians via 20-year historical average) |
-    Forecast: Open-Meteo API |
+    Forecast & basin conditions: Open-Meteo API |
     SWE = Snow Water Equivalent (water content if snowpack melted) |
     Snow-to-SWE conversion uses approximate 12:1 ratio
   </footer>
@@ -1323,6 +1341,97 @@ const basinRows = basins.map(([name, b]) => {
 }).join('');
 
 document.getElementById('basin-tbody').innerHTML = basinRows;
+
+// ============================================================
+// Basin Conditions (Open-Meteo)
+// ============================================================
+
+function cardinalFromDeg(deg) {
+  if (deg == null || Number.isNaN(deg)) return '--';
+  const dirs = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
+  return dirs[Math.round(deg / 45) % 8];
+}
+
+function mean(arr) {
+  if (!arr || !arr.length) return null;
+  const valid = arr.filter(v => Number.isFinite(v));
+  if (!valid.length) return null;
+  return valid.reduce((a, b) => a + b, 0) / valid.length;
+}
+
+function buildBasinCentroids() {
+  const byBasin = {};
+  (DATA.stations.list || []).forEach(st => {
+    if (!st.basin || !Number.isFinite(st.lat) || !Number.isFinite(st.lon)) return;
+    if (!byBasin[st.basin]) byBasin[st.basin] = { lat: [], lon: [] };
+    byBasin[st.basin].lat.push(st.lat);
+    byBasin[st.basin].lon.push(st.lon);
+  });
+
+  const centroids = {};
+  Object.entries(byBasin).forEach(([basin, pts]) => {
+    centroids[basin] = {
+      lat: mean(pts.lat),
+      lon: mean(pts.lon),
+    };
+  });
+  return centroids;
+}
+
+async function loadBasinConditions() {
+  const tbody = document.getElementById('basin-conditions-tbody');
+  const centroids = buildBasinCentroids();
+  const basinNames = Object.keys(DATA.basins || {});
+
+  try {
+    const rows = await Promise.all(basinNames.map(async (basin) => {
+      const c = centroids[basin];
+      if (!c) return { basin, error: 'No centroid' };
+
+      const url = `https://api.open-meteo.com/v1/forecast?latitude=${c.lat.toFixed(4)}&longitude=${c.lon.toFixed(4)}&hourly=temperature_2m,wind_speed_10m,wind_direction_10m,soil_moisture_0_to_1cm&past_days=1&forecast_days=1&timezone=America/Denver`;
+      const r = await fetch(url);
+      const j = await r.json();
+
+      if (!j.hourly) return { basin, error: 'No data' };
+
+      const temp = mean(j.hourly.temperature_2m);
+      const wind = mean(j.hourly.wind_speed_10m);
+      const soil = mean(j.hourly.soil_moisture_0_to_1cm);
+      const dirSeries = j.hourly.wind_direction_10m || [];
+      const currentDir = dirSeries.length ? dirSeries[dirSeries.length - 1] : null;
+
+      return {
+        basin,
+        avgTempC: temp,
+        avgTempF: temp != null ? (temp * 9 / 5) + 32 : null,
+        avgWindMph: wind != null ? wind * 0.621371 : null,
+        windDir: cardinalFromDeg(currentDir),
+        soilPct: soil != null ? soil * 100 : null,
+      };
+    }));
+
+    const sorted = rows.sort((a, b) => a.basin.localeCompare(b.basin));
+
+    tbody.innerHTML = sorted.map(r => {
+      if (r.error) {
+        return `<tr><td>${r.basin}</td><td colspan="4" class="loading">Unavailable (${r.error})</td></tr>`;
+      }
+      return `
+        <tr>
+          <td>${r.basin}</td>
+          <td>${r.avgTempF != null ? r.avgTempF.toFixed(1) : '--'}°F</td>
+          <td>${r.avgWindMph != null ? r.avgWindMph.toFixed(1) : '--'} mph</td>
+          <td>${r.windDir}</td>
+          <td>${r.soilPct != null ? r.soilPct.toFixed(1) : '--'}%</td>
+        </tr>
+      `;
+    }).join('');
+  } catch (err) {
+    tbody.innerHTML = `<tr><td colspan="5" class="loading">Basin conditions unavailable: ${err.message}</td></tr>`;
+  }
+}
+
+loadBasinConditions();
 
 </script>
 </body>

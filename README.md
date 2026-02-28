@@ -32,6 +32,7 @@ forecast updates automatically each time you open the dashboard (fetched live).
 - **Catch-up analysis**: Pace needed vs actual pace, rate multiple, % of normal remaining
 - **7-day forecast**: Expected mountain snowfall from 4 CO locations (Open-Meteo)
 - **Basin breakdown**: Per-basin SWE stats for 6 Colorado river basins
+- **Basin conditions**: Per-basin 24h average temperature, wind, and near-surface soil moisture (Open-Meteo)
 
 ## Data Sources
 
