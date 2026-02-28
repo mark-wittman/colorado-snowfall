@@ -771,52 +771,253 @@ function getRegionSeries(region) {
   };
 }
 
-function computeOverallScoreSeries(region) {
+const climateHistoryCache = {};
+const scoreModelCache = {};
+
+function meanNum(arr) {
+  const vals = (arr || []).filter(Number.isFinite);
+  if (!vals.length) return null;
+  return vals.reduce((a,b)=>a+b,0)/vals.length;
+}
+
+function stdNum(arr) {
+  const m = meanNum(arr);
+  if (m == null) return null;
+  const vals = arr.filter(Number.isFinite);
+  const v = vals.reduce((a,b)=>a+(b-m)*(b-m),0)/Math.max(1, vals.length-1);
+  return Math.sqrt(v);
+}
+
+function ridgeFit(X, y, lambda = 1.5) {
+  const p = X[0].length;
+  const A = Array.from({ length: p }, () => Array(p).fill(0));
+  const b = Array(p).fill(0);
+
+  for (let i = 0; i < X.length; i++) {
+    const xi = X[i];
+    for (let j = 0; j < p; j++) {
+      b[j] += xi[j] * y[i];
+      for (let k = 0; k < p; k++) A[j][k] += xi[j] * xi[k];
+    }
+  }
+  for (let j = 1; j < p; j++) A[j][j] += lambda;
+
+  for (let i = 0; i < p; i++) {
+    let maxRow = i;
+    for (let r = i + 1; r < p; r++) if (Math.abs(A[r][i]) > Math.abs(A[maxRow][i])) maxRow = r;
+    [A[i], A[maxRow]] = [A[maxRow], A[i]];
+    [b[i], b[maxRow]] = [b[maxRow], b[i]];
+    const piv = A[i][i] || 1e-8;
+    for (let j = i; j < p; j++) A[i][j] /= piv;
+    b[i] /= piv;
+    for (let r = 0; r < p; r++) {
+      if (r === i) continue;
+      const f = A[r][i];
+      for (let j = i; j < p; j++) A[r][j] -= f * A[i][j];
+      b[r] -= f * b[i];
+    }
+  }
+  return b;
+}
+
+function ridgePredict(beta, x) {
+  return beta.reduce((a,bi,i)=>a+bi*x[i],0);
+}
+
+async function fetchHistoricalClimate(region, yearsNeeded) {
+  if (climateHistoryCache[region]) return climateHistoryCache[region];
+
+  const centroids = buildBasinCentroids();
+  let c;
+  if (region === 'Colorado (Statewide)') {
+    const vals = Object.values(centroids);
+    c = {
+      lat: vals.reduce((a, v) => a + v.lat, 0) / vals.length,
+      lon: vals.reduce((a, v) => a + v.lon, 0) / vals.length,
+    };
+  } else {
+    c = centroids[region];
+  }
+  if (!c) return {};
+
+  const minYear = Math.min(...yearsNeeded.map(y => Number(y) - 1));
+  const maxYear = Math.max(...yearsNeeded.map(y => Number(y)));
+  const urlPrimary = `https://archive-api.open-meteo.com/v1/archive?latitude=${c.lat.toFixed(4)}&longitude=${c.lon.toFixed(4)}&start_date=${minYear}-10-01&end_date=${maxYear}-06-30&daily=temperature_2m_mean,wind_speed_10m_mean,soil_moisture_0_to_7cm_mean&timezone=America/Denver`;
+  const urlFallback = `https://archive-api.open-meteo.com/v1/archive?latitude=${c.lat.toFixed(4)}&longitude=${c.lon.toFixed(4)}&start_date=${minYear}-10-01&end_date=${maxYear}-06-30&daily=temperature_2m_mean,wind_speed_10m_mean&timezone=America/Denver`;
+
+  let j;
+  try {
+    const r = await fetch(urlPrimary);
+    j = await r.json();
+    if (!j || j.error) throw new Error('primary climate request failed');
+  } catch (_) {
+    const r2 = await fetch(urlFallback);
+    j = await r2.json();
+  }
+  const d = j.daily || {};
+  const out = {};
+  const times = d.time || [];
+
+  for (let i = 0; i < times.length; i++) {
+    const date = times[i];
+    const y = Number(date.slice(0,4));
+    const m = Number(date.slice(5,7));
+    const wy = m >= 10 ? y + 1 : y;
+    const wyStartYear = wy - 1;
+    const doy = Math.floor((new Date(date+'T12:00:00') - new Date(`${wyStartYear}-10-01T12:00:00`)) / 86400000) + 1;
+    if (doy < 1 || doy > 274) continue;
+    if (!out[wy]) out[wy] = {};
+    out[wy][doy] = {
+      temp: d.temperature_2m_mean?.[i],
+      wind: d.wind_speed_10m_mean?.[i],
+      soil: d.soil_moisture_0_to_7cm_mean?.[i],
+    };
+  }
+
+  climateHistoryCache[region] = out;
+  return out;
+}
+
+async function computeOverallScoreSeries(region) {
+  const cacheKey = `${region}`;
+  if (scoreModelCache[cacheKey]) return scoreModelCache[cacheKey];
+
   const series = getRegionSeries(region);
-  if (!series.current || !series.historical) return null;
+  if (!series.current || !series.historical) return { current: [], historical: {}, ci: [] };
 
-  const curDates = series.current.dates || [];
-  const curSwe = series.current.swe || [];
+  const hist = series.historical;
+  const years = Object.keys(hist).sort();
+  const climate = await fetchHistoricalClimate(region, years);
 
-  const byDoyVals = {};
+  const byDoySwe = {};
   const byDoyMom = {};
+  const byDoyTemp = {};
+  const byDoyWind = {};
+  const byDoySoil = {};
 
-  Object.values(series.historical).forEach(curve => {
-    const vals = curve.swe || [];
+  years.forEach(yr => {
+    const vals = hist[yr].swe || [];
     vals.forEach((v, i) => {
+      const doy = i + 1;
       if (!Number.isFinite(v)) return;
-      if (!byDoyVals[i]) byDoyVals[i] = [];
-      byDoyVals[i].push(v);
+      if (!byDoySwe[doy]) byDoySwe[doy] = [];
+      byDoySwe[doy].push(v);
       const mom = movingDelta(vals, i, 14);
       if (mom != null) {
-        if (!byDoyMom[i]) byDoyMom[i] = [];
-        byDoyMom[i].push(mom);
+        if (!byDoyMom[doy]) byDoyMom[doy] = [];
+        byDoyMom[doy].push(mom);
+      }
+      const cl = climate[yr]?.[doy];
+      if (cl) {
+        if (Number.isFinite(cl.temp)) (byDoyTemp[doy] ||= []).push(cl.temp);
+        if (Number.isFinite(cl.wind)) (byDoyWind[doy] ||= []).push(cl.wind);
+        if (Number.isFinite(cl.soil)) (byDoySoil[doy] ||= []).push(cl.soil);
       }
     });
   });
 
-  Object.values(byDoyVals).forEach(arr => arr.sort((a, b) => a - b));
-  Object.values(byDoyMom).forEach(arr => arr.sort((a, b) => a - b));
+  [byDoySwe, byDoyMom, byDoyTemp, byDoyWind, byDoySoil].forEach(map =>
+    Object.values(map).forEach(a => a.sort((x, y) => x - y))
+  );
 
-  const out = curDates.map((d, i) => {
-    const swe = curSwe[i];
-    const swePct = Number.isFinite(swe) && byDoyVals[i] ? percentileRank(byDoyVals[i], swe) : null;
-    const mom = movingDelta(curSwe, i, 14);
-    const momPct = mom != null && byDoyMom[i] ? percentileRank(byDoyMom[i], mom) : null;
+  function featuresForYear(yr, i) {
+    const doy = i + 1;
+    const s = hist[yr].swe[i];
+    const mom = movingDelta(hist[yr].swe, i, 14);
+    const cl = climate[yr]?.[doy] || {};
 
-    const sweScore = swePct ?? 50;
-    const momentumScore = momPct ?? 50;
+    const swePct = Number.isFinite(s) ? (percentileRank(byDoySwe[doy] || [], s) ?? 50) : 50;
+    const momPct = mom == null ? 50 : (percentileRank(byDoyMom[doy] || [], mom) ?? 50);
 
-    // Catch-up score proxy: penalize large deficits vs same-day historical median
-    const histMedian = byDoyVals[i]?.[Math.floor((byDoyVals[i].length - 1) / 2)] ?? swe;
-    const deficit = Math.max(0, (histMedian ?? 0) - (swe ?? 0));
-    const catchupScore = Math.max(0, 100 - deficit * 8);
+    const tMean = meanNum(byDoyTemp[doy]) ?? cl.temp ?? 0;
+    const wMean = meanNum(byDoyWind[doy]) ?? cl.wind ?? 0;
+    const soMean = meanNum(byDoySoil[doy]) ?? cl.soil ?? 0;
 
-    const score = 0.55 * sweScore + 0.30 * momentumScore + 0.15 * catchupScore;
-    return { x: d, y: Math.max(0, Math.min(100, score)) };
+    const tAnom = Number.isFinite(cl.temp) ? cl.temp - tMean : 0;
+    const wAnom = Number.isFinite(cl.wind) ? cl.wind - wMean : 0;
+    const sAnom = Number.isFinite(cl.soil) ? cl.soil - soMean : 0;
+
+    return [1, swePct / 100, momPct / 100, tAnom, wAnom, sAnom];
+  }
+
+  function targetForYear(yr) {
+    const vals = hist[yr].swe || [];
+    const peak = Math.max(...vals.filter(Number.isFinite));
+    const allPeaks = years.map(y => Math.max(...(hist[y].swe || []).filter(Number.isFinite))).filter(Number.isFinite).sort((a,b)=>a-b);
+    return (percentileRank(allPeaks, peak) ?? 50) / 100;
+  }
+
+  const trainRows = [];
+  years.forEach(yr => {
+    const target = targetForYear(yr);
+    const points = [60, 90, 120, 150].filter(i => i < (hist[yr].swe || []).length);
+    points.forEach(i => trainRows.push({ yr, x: featuresForYear(yr, i), y: target }));
   });
 
-  return out;
+  const X = trainRows.map(r => r.x);
+  const Y = trainRows.map(r => r.y);
+  const beta = ridgeFit(X, Y, 2.0);
+
+  const preds = X.map(x => ridgePredict(beta, x));
+  const residuals = preds.map((p, i) => Y[i] - p);
+  const rmse = Math.sqrt(residuals.reduce((a,b)=>a+b*b,0)/Math.max(1,residuals.length));
+
+  // leave-one-year-out backtest skill
+  const cv = [];
+  years.forEach(testYr => {
+    const tr = trainRows.filter(r => r.yr !== testYr);
+    if (tr.length < 8) return;
+    const b = ridgeFit(tr.map(r=>r.x), tr.map(r=>r.y), 2.0);
+    const evalRow = trainRows.find(r => r.yr === testYr && (hist[testYr].swe || []).length > 120 && r.x);
+    if (!evalRow) return;
+    cv.push({ y: evalRow.y, p: ridgePredict(b, evalRow.x) });
+  });
+  const cvMae = cv.length ? cv.reduce((a,r)=>a+Math.abs(r.y-r.p),0)/cv.length : null;
+  const yMean = cv.length ? cv.reduce((a,r)=>a+r.y,0)/cv.length : 0;
+  const ssTot = cv.reduce((a,r)=>a+(r.y-yMean)**2,0);
+  const ssRes = cv.reduce((a,r)=>a+(r.y-r.p)**2,0);
+  const cvR2 = cv.length && ssTot > 0 ? 1 - ssRes/ssTot : null;
+
+  const curDates = series.current.dates || [];
+  const curSwe = series.current.swe || [];
+
+  const current = [];
+  const ciLow = [];
+  const ciHigh = [];
+  for (let i = 0; i < curDates.length; i++) {
+    const doy = i + 1;
+    // use pseudo-year 9999 with current curve and current weather anomaly from recent weather endpoint approximated as zero anomaly
+    const s = curSwe[i];
+    const swePct = Number.isFinite(s) ? (percentileRank(byDoySwe[doy] || [], s) ?? 50) : 50;
+    const mom = movingDelta(curSwe, i, 14);
+    const momPct = mom == null ? 50 : (percentileRank(byDoyMom[doy] || [], mom) ?? 50);
+    const x = [1, swePct / 100, momPct / 100, 0, 0, 0];
+    const pred = ridgePredict(beta, x);
+    const score = Math.max(0, Math.min(100, pred * 100));
+    current.push({ x: curDates[i], y: score });
+    ciLow.push({ x: curDates[i], y: Math.max(0, (pred - 1.0 * rmse) * 100) });
+    ciHigh.push({ x: curDates[i], y: Math.min(100, (pred + 1.0 * rmse) * 100) });
+  }
+
+  const historicalOut = {};
+  years.forEach(yr => {
+    const dates = hist[yr].dates || [];
+    historicalOut[yr] = dates.map((d, i) => {
+      const x = featuresForYear(yr, i);
+      const pred = ridgePredict(beta, x);
+      return { x: d, y: Math.max(0, Math.min(100, pred * 100)) };
+    });
+  });
+
+  const payload = {
+    current,
+    historical: historicalOut,
+    ciLow,
+    ciHigh,
+    skill: { rmse: rmse * 100, cvMae: cvMae != null ? cvMae * 100 : null, cvR2 },
+  };
+  scoreModelCache[cacheKey] = payload;
+  return payload;
 }
 
 async function fetchBasinRecentConditions(region) {
@@ -915,27 +1116,39 @@ async function renderMainChart() {
     datasets = buildSweDatasets(currentRegion);
     yLabel = 'SWE (inches)';
   } else if (currentMetric === 'overall') {
-    const scorePts = computeOverallScoreSeries(currentRegion) || [];
-    datasets = [{
-      label: `Overall Score (${currentRegion})`,
-      data: scorePts,
-      borderColor: METRIC_META.overall.color,
-      borderWidth: 2.4,
-      fill: false,
-      pointRadius: 0,
-      tension: 0.2,
-    }];
+    const scorePack = await computeOverallScoreSeries(currentRegion);
+    datasets = [
+      {
+        label: 'Confidence high',
+        data: scorePack.ciHigh || [],
+        borderColor: 'transparent',
+        backgroundColor: 'transparent',
+        fill: false,
+        pointRadius: 0,
+      },
+      {
+        label: 'Model confidence (±1σ)',
+        data: scorePack.ciLow || [],
+        borderColor: 'transparent',
+        backgroundColor: 'rgba(74, 222, 128, 0.12)',
+        fill: '-1',
+        pointRadius: 0,
+      },
+      {
+        label: `Overall Score (${currentRegion})`,
+        data: scorePack.current || [],
+        borderColor: METRIC_META.overall.color,
+        borderWidth: 2.6,
+        fill: false,
+        pointRadius: 0,
+        tension: 0.2,
+      }
+    ];
     if (histToggle.checked) {
-      const series = getRegionSeries(currentRegion);
       const selected = Array.from(yearSelect.selectedOptions).map(o => o.value);
       selected.forEach((yr, i) => {
-        const yd = (series.historical || {})[yr];
-        if (!yd) return;
-        const fauxCurrent = { dates: yd.dates, swe: yd.swe };
-        const byDoy = {};
-        Object.values(series.historical || {}).forEach(cur => (cur.swe || []).forEach((v, idx) => { if (!byDoy[idx]) byDoy[idx] = []; byDoy[idx].push(v); }));
-        Object.values(byDoy).forEach(arr => arr.sort((a,b)=>a-b));
-        const pts = fauxCurrent.dates.map((d, idx) => ({ x: d, y: percentileRank(byDoy[idx] || [], fauxCurrent.swe[idx]) ?? 50 }));
+        const pts = (scorePack.historical || {})[yr];
+        if (!pts) return;
         datasets.push({
           label: `WY ${yr} Score`,
           data: pts,
@@ -946,6 +1159,11 @@ async function renderMainChart() {
           tension: 0.1,
         });
       });
+    }
+    const r2 = scorePack.skill?.cvR2;
+    const mae = scorePack.skill?.cvMae;
+    if (r2 != null || mae != null) {
+      chartTitle.textContent = `${meta.title} — ${currentRegion} ${r2 != null ? `| CV R² ${r2.toFixed(2)}` : ''}${mae != null ? ` | MAE ${mae.toFixed(1)} pts` : ''}`;
     }
     yLabel = 'Score (0-100)';
   } else {
@@ -1019,12 +1237,14 @@ async function renderMainChart() {
     },
   });
 
-  legend.innerHTML = datasets.map(ds => `
-    <div class="legend-item">
-      <span class="legend-swatch" style="background:${ds.borderColor};"></span>
-      ${ds.label}
-    </div>
-  `).join('');
+  legend.innerHTML = datasets
+    .filter(ds => ds.label !== 'Confidence high')
+    .map(ds => `
+      <div class="legend-item">
+        <span class="legend-swatch" style="background:${ds.borderColor === 'transparent' ? ds.backgroundColor || '#6B7280' : ds.borderColor};"></span>
+        ${ds.label}
+      </div>
+    `).join('');
 
   const sweMode = currentMetric === 'swe' || currentMetric === 'overall';
   histToggle.parentElement.style.display = sweMode ? '' : 'none';
