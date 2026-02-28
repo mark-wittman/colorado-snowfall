@@ -213,9 +213,73 @@ header h1 {
 
 .chart-controls {
   display: flex;
+  gap: 0.6rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.segmented {
+  display: inline-flex;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--bg-deep);
+}
+
+.segmented button {
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  padding: 0.42rem 0.65rem;
+  font-family: var(--font-display);
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.segmented button.active {
+  background: var(--ice-dim);
+  color: var(--ice);
+}
+
+.segmented button + button {
+  border-left: 1px solid var(--border);
+}
+
+.chart-accordion {
+  width: 100%;
+  margin-top: 0.35rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: rgba(11, 18, 32, 0.55);
+}
+
+.chart-accordion summary {
+  list-style: none;
+  cursor: pointer;
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  padding: 0.45rem 0.6rem;
+}
+
+.chart-accordion summary::-webkit-details-marker { display: none; }
+
+.chart-accordion-body {
+  display: flex;
   gap: 0.5rem;
   align-items: center;
   flex-wrap: wrap;
+  padding: 0 0.6rem 0.55rem;
+}
+
+.model-pill {
+  display: inline-block;
+  font-size: 0.66rem;
+  color: var(--green);
+  border: 1px solid rgba(74, 222, 128, 0.35);
+  border-radius: 999px;
+  padding: 0.16rem 0.45rem;
 }
 
 .chart-controls label {
@@ -570,19 +634,30 @@ footer a {
         <div class="chart-title" id="chart-title">Total Snowpack (Cumulative SWE)</div>
       </div>
       <div class="chart-controls">
-        <select id="metric-select" class="year-select" style="max-width: 170px;">
-          <option value="overall">Overall Score</option>
-          <option value="swe" selected>Snowpack (SWE)</option>
-          <option value="temp">Temperature</option>
-          <option value="soil">Soil Moisture</option>
-          <option value="wind">Wind Speed</option>
-        </select>
-        <select id="region-select" class="year-select" style="max-width: 220px;"></select>
-        <label>
-          <input type="checkbox" id="toggle-history" checked>
-          Show historical years
-        </label>
-        <select id="year-select" class="year-select" multiple size="5"></select>
+        <div class="segmented" id="metric-segment">
+          <button data-metric="overall">Overall</button>
+          <button data-metric="swe" class="active">SWE</button>
+          <button data-metric="temp">Temp</button>
+          <button data-metric="soil">Soil</button>
+          <button data-metric="wind">Wind</button>
+        </div>
+        <div class="segmented" id="region-mode-segment">
+          <button data-region-mode="state" class="active">Colorado</button>
+          <button data-region-mode="basin">Basin</button>
+        </div>
+        <select id="region-select" class="year-select" style="max-width: 220px; display:none;"></select>
+        <span class="model-pill" id="model-skill-pill" style="display:none;">Model: calibrated hindcast</span>
+
+        <details class="chart-accordion">
+          <summary>Advanced controls</summary>
+          <div class="chart-accordion-body">
+            <label>
+              <input type="checkbox" id="toggle-history" checked>
+              Show historical years
+            </label>
+            <select id="year-select" class="year-select" multiple size="5"></select>
+          </div>
+        </details>
       </div>
     </div>
     <div class="chart-wrapper">
@@ -724,11 +799,13 @@ REGION_NAMES.forEach(name => {
   opt.textContent = name;
   regionSelect.appendChild(opt);
 });
-regionSelect.value = 'Colorado (Statewide)';
+regionSelect.value = Object.keys(DATA.basins || {}).sort()[0] || 'Colorado (Statewide)';
 
-const metricSelect = document.getElementById('metric-select');
+const metricSegment = document.getElementById('metric-segment');
+const regionModeSegment = document.getElementById('region-mode-segment');
 const histToggle = document.getElementById('toggle-history');
 const yearSelect = document.getElementById('year-select');
+const modelSkillPill = document.getElementById('model-skill-pill');
 
 const years = Object.keys(DATA.historical_years).sort();
 years.forEach(yr => {
@@ -1051,6 +1128,7 @@ async function fetchBasinRecentConditions(region) {
 let cachedWeather = {};
 let currentMetric = 'swe';
 let currentRegion = 'Colorado (Statewide)';
+let regionMode = 'state';
 
 function buildSweDatasets(region) {
   const series = getRegionSeries(region);
@@ -1164,9 +1242,15 @@ async function renderMainChart() {
     const mae = scorePack.skill?.cvMae;
     if (r2 != null || mae != null) {
       chartTitle.textContent = `${meta.title} — ${currentRegion} ${r2 != null ? `| CV R² ${r2.toFixed(2)}` : ''}${mae != null ? ` | MAE ${mae.toFixed(1)} pts` : ''}`;
+      modelSkillPill.style.display = '';
+      modelSkillPill.textContent = `Calibrated hindcast • ${r2 != null ? `R² ${r2.toFixed(2)}` : ''}${mae != null ? ` • MAE ${mae.toFixed(1)} pts` : ''}`;
+    } else {
+      modelSkillPill.style.display = '';
+      modelSkillPill.textContent = 'Calibrated hindcast model';
     }
     yLabel = 'Score (0-100)';
   } else {
+    modelSkillPill.style.display = 'none';
     const key = `${currentRegion}`;
     if (!cachedWeather[key]) cachedWeather[key] = await fetchBasinRecentConditions(currentRegion);
     const weather = cachedWeather[key];
@@ -1251,14 +1335,40 @@ async function renderMainChart() {
   yearSelect.style.display = sweMode && histToggle.checked ? 'block' : 'none';
 }
 
-metricSelect.addEventListener('change', async (e) => {
-  currentMetric = e.target.value;
-  await renderMainChart();
+metricSegment.querySelectorAll('button').forEach(btn => {
+  btn.addEventListener('click', async () => {
+    metricSegment.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentMetric = btn.dataset.metric;
+    await renderMainChart();
+  });
 });
+
+regionModeSegment.querySelectorAll('button').forEach(btn => {
+  btn.addEventListener('click', async () => {
+    regionModeSegment.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    regionMode = btn.dataset.regionMode;
+    if (regionMode === 'state') {
+      currentRegion = 'Colorado (Statewide)';
+      regionSelect.style.display = 'none';
+    } else {
+      regionSelect.style.display = '';
+      currentRegion = regionSelect.value || currentRegion;
+      if (currentRegion === 'Colorado (Statewide)') {
+        currentRegion = Object.keys(DATA.basins || {}).sort()[0] || currentRegion;
+        regionSelect.value = currentRegion;
+      }
+    }
+    await renderMainChart();
+  });
+});
+
 regionSelect.addEventListener('change', async (e) => {
   currentRegion = e.target.value;
   await renderMainChart();
 });
+
 histToggle.addEventListener('change', async () => {
   yearSelect.style.display = histToggle.checked ? 'block' : 'none';
   await renderMainChart();
