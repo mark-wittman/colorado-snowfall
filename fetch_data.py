@@ -226,6 +226,16 @@ def compute_envelope(historical_curves, max_doy):
     return envelope
 
 
+
+
+def curve_from_agg(agg, wy_start_year):
+    """Convert date-keyed aggregate to DOY-keyed curve."""
+    curve = {}
+    for date_str, vals in agg.items():
+        doy = date_to_doy(date_str, wy_start_year)
+        curve[doy] = vals["swe"]
+    return curve
+
 def main():
     print("=" * 60)
     print("  Colorado Snowfall Dashboard - Data Fetcher")
@@ -262,6 +272,7 @@ def main():
     print(f"\nFetching {HISTORICAL_YEARS} historical water years ({hist_start_wy}-{CURRENT_WY - 1})...")
 
     historical_curves = {}  # {wy_year: {doy: mean_swe}}
+    basin_historical_curves = defaultdict(dict)  # {basin: {wy_year: {doy: swe}}}
     for wy in range(hist_start_wy, CURRENT_WY):
         wy_begin = f"{wy - 1}-10-01"
         wy_end = f"{wy}-06-30"
@@ -273,11 +284,15 @@ def main():
         )
         hist_agg = aggregate_by_date(all_hist)
 
-        curve = {}
-        for date_str, vals in hist_agg.items():
-            doy = date_to_doy(date_str, wy - 1)
-            curve[doy] = vals["swe"]
+        curve = curve_from_agg(hist_agg, wy - 1)
         historical_curves[str(wy)] = curve
+
+        for basin_name, triplets in basin_triplets.items():
+            basin_hist_agg = aggregate_by_date(all_hist, station_filter=triplets)
+            basin_curve = curve_from_agg(basin_hist_agg, wy - 1)
+            if basin_curve:
+                basin_historical_curves[basin_name][str(wy)] = basin_curve
+
         print(f" {len(curve)} days")
 
     # -------------------------------------------------------
@@ -392,10 +407,12 @@ def main():
     # -------------------------------------------------------
     print("Computing per-basin stats...")
     basin_stats = {}
+    basin_current_series = {}
     for basin_name, triplets in sorted(basin_triplets.items()):
         basin_agg = aggregate_by_date(current_data, station_filter=triplets)
         if basin_agg:
-            latest = sorted(basin_agg.keys())[-1]
+            basin_dates = sorted(basin_agg.keys())
+            latest = basin_dates[-1]
             b_swe = basin_agg[latest]["swe"]
             b_med = basin_agg[latest]["median"]
             basin_stats[basin_name] = {
@@ -404,6 +421,11 @@ def main():
                 "median_swe_today": b_med,
                 "pct_of_median": round((b_swe / b_med) * 100, 1) if b_med > 0 else 0,
                 "deficit_inches": round(b_med - b_swe, 2),
+            }
+            basin_current_series[basin_name] = {
+                "dates": basin_dates,
+                "swe": [basin_agg[d]["swe"] for d in basin_dates],
+                "median": [basin_agg[d]["median"] for d in basin_dates],
             }
 
     # -------------------------------------------------------
@@ -418,6 +440,17 @@ def main():
             "dates": [doy_to_date_str(doy, CURRENT_WY - 1) for doy in sorted_doys],
             "swe": [curve[doy] for doy in sorted_doys],
         }
+
+
+    basin_hist_output = {}
+    for basin_name, yr_map in basin_historical_curves.items():
+        basin_hist_output[basin_name] = {}
+        for yr, curve in yr_map.items():
+            sorted_doys = sorted(curve.keys())
+            basin_hist_output[basin_name][yr] = {
+                "dates": [doy_to_date_str(doy, CURRENT_WY - 1) for doy in sorted_doys],
+                "swe": [curve[doy] for doy in sorted_doys],
+            }
 
     # -------------------------------------------------------
     # Step 9: Assemble and write output
@@ -480,6 +513,8 @@ def main():
             "swe": catchup_swe,
         },
         "basins": basin_stats,
+        "basin_current_series": basin_current_series,
+        "basin_historical_years": basin_hist_output,
         "forecast_points": [
             {"name": "Steamboat / Yampa", "lat": 40.48, "lon": -106.83},
             {"name": "Vail / Eagle", "lat": 39.64, "lon": -106.37},

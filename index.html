@@ -570,15 +570,19 @@ footer a {
         <div class="chart-title" id="chart-title">Total Snowpack (Cumulative SWE)</div>
       </div>
       <div class="chart-controls">
-        <div class="view-toggle">
-          <button class="active" id="btn-cumulative" onclick="setChartView('cumulative')">Total Snowpack</button>
-          <button id="btn-daily" onclick="setChartView('daily')">Daily Change</button>
-        </div>
+        <select id="metric-select" class="year-select" style="max-width: 170px;">
+          <option value="overall">Overall Score</option>
+          <option value="swe" selected>Snowpack (SWE)</option>
+          <option value="temp">Temperature</option>
+          <option value="soil">Soil Moisture</option>
+          <option value="wind">Wind Speed</option>
+        </select>
+        <select id="region-select" class="year-select" style="max-width: 220px;"></select>
         <label>
-          <input type="checkbox" id="toggle-history">
+          <input type="checkbox" id="toggle-history" checked>
           Show historical years
         </label>
-        <select id="year-select" class="year-select" multiple style="display:none;" size="5"></select>
+        <select id="year-select" class="year-select" multiple size="5"></select>
       </div>
     </div>
     <div class="chart-wrapper">
@@ -701,362 +705,28 @@ const heroHTML = [
 document.getElementById('hero-cards').innerHTML = heroHTML;
 
 // ============================================================
-// Main SWE Chart
+// Main Chart: multi-factor + region toggle
 // ============================================================
 
-function buildMainChart() {
-  const ctx = document.getElementById('swe-chart').getContext('2d');
+const METRIC_META = {
+  swe: { title: 'Snowpack (SWE)', unit: 'in', color: '#7DD3FC' },
+  overall: { title: 'Overall Snowpack Health Score', unit: 'score', color: '#4ADE80' },
+  temp: { title: '24h Avg Temperature', unit: '°F', color: '#FBBF24' },
+  soil: { title: '24h Avg Soil Moisture (0-1cm)', unit: '%', color: '#4ADE80' },
+  wind: { title: '24h Avg Wind Speed', unit: 'mph', color: '#C084FC' },
+};
 
-  // Envelope datasets — aligned by date string
-  const envDates = DATA.historical_envelope.dates;
+const REGION_NAMES = ['Colorado (Statewide)', ...Object.keys(DATA.basins || {}).sort()];
+const regionSelect = document.getElementById('region-select');
+REGION_NAMES.forEach(name => {
+  const opt = document.createElement('option');
+  opt.value = name;
+  opt.textContent = name;
+  regionSelect.appendChild(opt);
+});
+regionSelect.value = 'Colorado (Statewide)';
 
-  const makeEnvDataset = (arr) =>
-    envDates.map((d, i) => arr[i] != null ? { x: d, y: arr[i] } : null).filter(Boolean);
-
-  // Current season
-  const currentPts = DATA.current_season.dates.map((d, i) => ({ x: d, y: DATA.current_season.swe[i] }));
-
-  // Full-season median
-  const medianPts = DATA.median_full_season.dates.map((d, i) => ({ x: d, y: DATA.median_full_season.median[i] }));
-
-  // Catchup projection
-  const catchupPts = DATA.catchup_projection.dates.map((d, i) => ({ x: d, y: DATA.catchup_projection.swe[i] }));
-
-  // Record low year — find it dynamically
-  let recordLowYear = null;
-  let recordLowPeak = Infinity;
-  for (const [yr, curve] of Object.entries(DATA.historical_years)) {
-    const peak = Math.max(...curve.swe);
-    if (peak < recordLowPeak) {
-      recordLowPeak = peak;
-      recordLowYear = yr;
-    }
-  }
-  const recordLowData = DATA.historical_years[recordLowYear];
-  const recordLowPts = recordLowData
-    ? recordLowData.dates.map((d, i) => ({ x: d, y: recordLowData.swe[i] }))
-    : [];
-
-  const datasets = [
-    // p90 (top of outer envelope)
-    {
-      label: 'p90',
-      data: makeEnvDataset(DATA.historical_envelope.p90),
-      borderColor: 'transparent',
-      backgroundColor: 'transparent',
-      fill: false,
-      pointRadius: 0,
-      order: 10,
-    },
-    // p10 fill to p90
-    {
-      label: '10th-90th Percentile',
-      data: makeEnvDataset(DATA.historical_envelope.p10),
-      borderColor: 'transparent',
-      backgroundColor: 'rgba(125, 211, 252, 0.05)',
-      fill: '-1',
-      pointRadius: 0,
-      order: 9,
-    },
-    // p75
-    {
-      label: 'p75',
-      data: makeEnvDataset(DATA.historical_envelope.p75),
-      borderColor: 'transparent',
-      backgroundColor: 'transparent',
-      fill: false,
-      pointRadius: 0,
-      order: 8,
-    },
-    // p25 fill to p75
-    {
-      label: '25th-75th Percentile',
-      data: makeEnvDataset(DATA.historical_envelope.p25),
-      borderColor: 'transparent',
-      backgroundColor: 'rgba(125, 211, 252, 0.10)',
-      fill: '-1',
-      pointRadius: 0,
-      order: 7,
-    },
-    // Median line
-    {
-      label: '20-Year Median',
-      data: medianPts,
-      borderColor: '#94A3B8',
-      borderDash: [6, 4],
-      borderWidth: 1.5,
-      fill: false,
-      pointRadius: 0,
-      tension: 0.2,
-      order: 5,
-    },
-    // Record low year
-    {
-      label: `WY ${recordLowYear} (Record Low)`,
-      data: recordLowPts,
-      borderColor: 'rgba(248, 113, 113, 0.4)',
-      borderWidth: 1.5,
-      fill: false,
-      pointRadius: 0,
-      tension: 0.15,
-      order: 4,
-    },
-    // Catch-up projection
-    {
-      label: 'Catch-Up Pace',
-      data: catchupPts,
-      borderColor: '#FBBF24',
-      borderDash: [5, 3],
-      borderWidth: 2,
-      fill: false,
-      pointRadius: 0,
-      order: 3,
-    },
-    // Current season (on top)
-    {
-      label: `WY ${DATA.water_year} Actual`,
-      data: currentPts,
-      borderColor: '#7DD3FC',
-      borderWidth: 2.5,
-      fill: false,
-      pointRadius: 0,
-      tension: 0.15,
-      order: 1,
-    },
-  ];
-
-  window.sweChart = new Chart(ctx, {
-    type: 'line',
-    data: { datasets },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      interaction: {
-        mode: 'index',
-        intersect: false,
-      },
-      scales: {
-        x: {
-          type: 'time',
-          time: {
-            unit: 'month',
-            displayFormats: { month: 'MMM' },
-          },
-          min: DATA.historical_envelope.dates[0],
-          max: DATA.historical_envelope.dates[DATA.historical_envelope.dates.length - 1],
-          grid: { color: 'rgba(255,255,255,0.04)' },
-          ticks: {
-            color: '#556677',
-            font: { family: 'Barlow Condensed', size: 12 },
-          },
-        },
-        y: {
-          beginAtZero: true,
-          title: {
-            display: true,
-            text: 'SWE (inches)',
-            color: '#556677',
-            font: { family: 'Barlow Condensed', size: 12 },
-          },
-          grid: { color: 'rgba(255,255,255,0.04)' },
-          ticks: {
-            color: '#556677',
-            font: { family: 'Barlow Condensed', size: 12 },
-          },
-        },
-      },
-      plugins: {
-        legend: { display: false },
-        tooltip: {
-          backgroundColor: '#111D2E',
-          borderColor: '#1E3048',
-          borderWidth: 1,
-          titleColor: '#E8EDF3',
-          bodyColor: '#8899AE',
-          titleFont: { family: 'Barlow Condensed', weight: '600' },
-          bodyFont: { family: 'DM Sans' },
-          padding: 12,
-          displayColors: true,
-          filter: (item) => !['p90', 'p75', '10th-90th Percentile', '25th-75th Percentile'].includes(item.dataset.label),
-          callbacks: {
-            title: (items) => {
-              if (!items.length) return '';
-              const d = new Date(items[0].parsed.x);
-              return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
-            },
-            label: (ctx) => `${ctx.dataset.label}: ${ctx.parsed.y.toFixed(1)} in`,
-          },
-        },
-      },
-    },
-  });
-}
-
-// Compute record low year at top level for legend
-let RECORD_LOW_YEAR = null;
-let RECORD_LOW_PEAK = Infinity;
-for (const [yr, curve] of Object.entries(DATA.historical_years)) {
-  const peak = Math.max(...curve.swe);
-  if (peak < RECORD_LOW_PEAK) {
-    RECORD_LOW_PEAK = peak;
-    RECORD_LOW_YEAR = yr;
-  }
-}
-document.getElementById('record-low-legend').textContent = `WY ${RECORD_LOW_YEAR} Record Low (peak ${RECORD_LOW_PEAK.toFixed(1)} in)`;
-
-buildMainChart();
-
-// ============================================================
-// View Toggle: Cumulative vs Daily Change
-// ============================================================
-
-let currentView = 'cumulative';
-
-function computeDeltas(dates, values) {
-  // Compute day-over-day change. First day is 0.
-  const deltas = [0];
-  for (let i = 1; i < values.length; i++) {
-    deltas.push(values[i] - values[i - 1]);
-  }
-  return dates.map((d, i) => ({ x: d, y: Math.round(deltas[i] * 100) / 100 }));
-}
-
-function buildDailyChart() {
-  const ctx = document.getElementById('swe-chart').getContext('2d');
-
-  // Current season daily deltas
-  const currentDeltas = computeDeltas(DATA.current_season.dates, DATA.current_season.swe);
-
-  // Median daily deltas
-  const medianDeltas = computeDeltas(DATA.median_full_season.dates, DATA.median_full_season.median);
-
-  // Color bars: positive = ice, negative = danger
-  const barColors = currentDeltas.map(pt => pt.y >= 0 ? 'rgba(125, 211, 252, 0.6)' : 'rgba(248, 113, 113, 0.6)');
-  const barBorders = currentDeltas.map(pt => pt.y >= 0 ? 'rgba(125, 211, 252, 0.9)' : 'rgba(248, 113, 113, 0.9)');
-
-  const datasets = [
-    {
-      label: '20-Year Median Daily Change',
-      data: medianDeltas,
-      borderColor: '#94A3B8',
-      borderDash: [6, 4],
-      borderWidth: 1.5,
-      fill: false,
-      pointRadius: 0,
-      tension: 0.2,
-      type: 'line',
-      order: 1,
-    },
-    {
-      label: `WY ${DATA.water_year} Daily Change`,
-      data: currentDeltas,
-      backgroundColor: barColors,
-      borderColor: barBorders,
-      borderWidth: 1,
-      borderRadius: 1,
-      type: 'bar',
-      order: 2,
-    },
-  ];
-
-  window.sweChart = new Chart(ctx, {
-    type: 'bar',
-    data: { datasets },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      interaction: { mode: 'index', intersect: false },
-      scales: {
-        x: {
-          type: 'time',
-          time: { unit: 'week', displayFormats: { week: 'MMM d' } },
-          min: DATA.current_season.dates[0],
-          max: DATA.current_season.dates[DATA.current_season.dates.length - 1],
-          grid: { color: 'rgba(255,255,255,0.04)' },
-          ticks: { color: '#556677', font: { family: 'Barlow Condensed', size: 12 } },
-        },
-        y: {
-          title: {
-            display: true,
-            text: 'Daily SWE Change (inches)',
-            color: '#556677',
-            font: { family: 'Barlow Condensed', size: 12 },
-          },
-          grid: { color: 'rgba(255,255,255,0.04)' },
-          ticks: { color: '#556677', font: { family: 'Barlow Condensed', size: 12 } },
-        },
-      },
-      plugins: {
-        legend: { display: false },
-        tooltip: {
-          backgroundColor: '#111D2E',
-          borderColor: '#1E3048',
-          borderWidth: 1,
-          titleColor: '#E8EDF3',
-          bodyColor: '#8899AE',
-          titleFont: { family: 'Barlow Condensed', weight: '600' },
-          bodyFont: { family: 'DM Sans' },
-          padding: 12,
-          callbacks: {
-            title: (items) => {
-              if (!items.length) return '';
-              const d = new Date(items[0].parsed.x);
-              return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
-            },
-            label: (ctx) => {
-              const v = ctx.parsed.y;
-              const sign = v >= 0 ? '+' : '';
-              return `${ctx.dataset.label}: ${sign}${v.toFixed(2)} in`;
-            },
-          },
-        },
-      },
-    },
-  });
-}
-
-function setChartView(view) {
-  if (view === currentView) return;
-  currentView = view;
-
-  // Update button states
-  document.getElementById('btn-cumulative').classList.toggle('active', view === 'cumulative');
-  document.getElementById('btn-daily').classList.toggle('active', view === 'daily');
-
-  // Destroy old chart
-  if (window.sweChart) window.sweChart.destroy();
-
-  // Rebuild
-  if (view === 'cumulative') {
-    document.getElementById('chart-title').textContent = 'Total Snowpack (Cumulative SWE)';
-    document.getElementById('chart-legend').style.display = 'flex';
-    document.getElementById('toggle-history').parentElement.style.display = '';
-    buildMainChart();
-    updateHistoricalYears();
-  } else {
-    document.getElementById('chart-title').textContent = 'Daily SWE Change';
-    document.getElementById('chart-legend').innerHTML = `
-      <div class="legend-item">
-        <span class="legend-swatch-area" style="background: var(--ice);"></span>
-        WY 2026 Daily Gain
-      </div>
-      <div class="legend-item">
-        <span class="legend-swatch-area" style="background: var(--danger);"></span>
-        WY 2026 Daily Loss
-      </div>
-      <div class="legend-item">
-        <span class="legend-swatch dashed" style="color: #94A3B8;"></span>
-        20-Year Median Daily Change
-      </div>
-    `;
-    document.getElementById('chart-legend').style.display = 'flex';
-    document.getElementById('toggle-history').parentElement.style.display = 'none';
-    document.getElementById('year-select').style.display = 'none';
-    buildDailyChart();
-  }
-}
-
-// Historical year toggle
+const metricSelect = document.getElementById('metric-select');
 const histToggle = document.getElementById('toggle-history');
 const yearSelect = document.getElementById('year-select');
 
@@ -1070,48 +740,318 @@ years.forEach(yr => {
 });
 
 const histColors = [
-  '#4B5563', '#6B7280', '#9CA3AF', '#374151', '#5C6370',
-  '#485563', '#6A737D', '#8B949E', '#3D4451', '#586069',
-  '#4B5E6D', '#5A6B7A', '#697C8B', '#3F5261', '#4E6170',
-  '#445566', '#556677', '#667788', '#384858', '#475868',
+  '#4B5563', '#6B7280', '#9CA3AF', '#374151', '#5C6370', '#485563', '#6A737D', '#8B949E'
 ];
 
-function updateHistoricalYears() {
-  if (currentView !== 'cumulative') return;
+function percentileRank(sortedVals, x) {
+  if (!sortedVals.length) return null;
+  let le = 0;
+  for (const v of sortedVals) if (v <= x) le++;
+  return (le / sortedVals.length) * 100;
+}
 
-  window.sweChart.data.datasets = window.sweChart.data.datasets.filter(
-    ds => !ds._isHistorical
-  );
+function movingDelta(values, i, window = 14) {
+  if (i < window) return null;
+  const a = values[i - window];
+  const b = values[i];
+  if (!Number.isFinite(a) || !Number.isFinite(b)) return null;
+  return b - a;
+}
+
+function getRegionSeries(region) {
+  if (region === 'Colorado (Statewide)') {
+    return {
+      current: DATA.current_season,
+      historical: DATA.historical_years,
+    };
+  }
+  return {
+    current: (DATA.basin_current_series || {})[region],
+    historical: (DATA.basin_historical_years || {})[region],
+  };
+}
+
+function computeOverallScoreSeries(region) {
+  const series = getRegionSeries(region);
+  if (!series.current || !series.historical) return null;
+
+  const curDates = series.current.dates || [];
+  const curSwe = series.current.swe || [];
+
+  const byDoyVals = {};
+  const byDoyMom = {};
+
+  Object.values(series.historical).forEach(curve => {
+    const vals = curve.swe || [];
+    vals.forEach((v, i) => {
+      if (!Number.isFinite(v)) return;
+      if (!byDoyVals[i]) byDoyVals[i] = [];
+      byDoyVals[i].push(v);
+      const mom = movingDelta(vals, i, 14);
+      if (mom != null) {
+        if (!byDoyMom[i]) byDoyMom[i] = [];
+        byDoyMom[i].push(mom);
+      }
+    });
+  });
+
+  Object.values(byDoyVals).forEach(arr => arr.sort((a, b) => a - b));
+  Object.values(byDoyMom).forEach(arr => arr.sort((a, b) => a - b));
+
+  const out = curDates.map((d, i) => {
+    const swe = curSwe[i];
+    const swePct = Number.isFinite(swe) && byDoyVals[i] ? percentileRank(byDoyVals[i], swe) : null;
+    const mom = movingDelta(curSwe, i, 14);
+    const momPct = mom != null && byDoyMom[i] ? percentileRank(byDoyMom[i], mom) : null;
+
+    const sweScore = swePct ?? 50;
+    const momentumScore = momPct ?? 50;
+
+    // Catch-up score proxy: penalize large deficits vs same-day historical median
+    const histMedian = byDoyVals[i]?.[Math.floor((byDoyVals[i].length - 1) / 2)] ?? swe;
+    const deficit = Math.max(0, (histMedian ?? 0) - (swe ?? 0));
+    const catchupScore = Math.max(0, 100 - deficit * 8);
+
+    const score = 0.55 * sweScore + 0.30 * momentumScore + 0.15 * catchupScore;
+    return { x: d, y: Math.max(0, Math.min(100, score)) };
+  });
+
+  return out;
+}
+
+async function fetchBasinRecentConditions(region) {
+  const centroids = buildBasinCentroids();
+  let c;
+  if (region === 'Colorado (Statewide)') {
+    const vals = Object.values(centroids);
+    const lat = vals.reduce((a, v) => a + v.lat, 0) / vals.length;
+    const lon = vals.reduce((a, v) => a + v.lon, 0) / vals.length;
+    c = { lat, lon };
+  } else {
+    c = centroids[region];
+  }
+  if (!c) throw new Error('No centroid available');
+
+  const url = `https://api.open-meteo.com/v1/forecast?latitude=${c.lat.toFixed(4)}&longitude=${c.lon.toFixed(4)}&hourly=temperature_2m,wind_speed_10m,soil_moisture_0_to_1cm&past_days=7&forecast_days=1&timezone=America/Denver`;
+  const r = await fetch(url);
+  const j = await r.json();
+  if (!j.hourly) throw new Error('No weather data');
+
+  const points = (j.hourly.time || []).map((t, i) => ({
+    x: t,
+    temp: j.hourly.temperature_2m?.[i],
+    wind: j.hourly.wind_speed_10m?.[i],
+    soil: j.hourly.soil_moisture_0_to_1cm?.[i],
+  }));
+
+  return points;
+}
+
+let cachedWeather = {};
+let currentMetric = 'swe';
+let currentRegion = 'Colorado (Statewide)';
+
+function buildSweDatasets(region) {
+  const series = getRegionSeries(region);
+  if (!series.current) return [];
+
+  const currentPts = (series.current.dates || []).map((d, i) => ({ x: d, y: series.current.swe[i] }));
+  const medianPts = (series.current.dates || []).map((d, i) => ({ x: d, y: series.current.median[i] }));
+
+  const datasets = [
+    {
+      label: `WY ${DATA.water_year} ${region === 'Colorado (Statewide)' ? 'Actual' : region}`,
+      data: currentPts,
+      borderColor: METRIC_META.swe.color,
+      borderWidth: 2.4,
+      fill: false,
+      pointRadius: 0,
+      tension: 0.15,
+    },
+    {
+      label: 'Median',
+      data: medianPts,
+      borderColor: '#94A3B8',
+      borderDash: [6, 4],
+      borderWidth: 1.5,
+      fill: false,
+      pointRadius: 0,
+      tension: 0.15,
+    },
+  ];
 
   if (histToggle.checked) {
-    yearSelect.style.display = 'block';
     const selected = Array.from(yearSelect.selectedOptions).map(o => o.value);
     selected.forEach((yr, i) => {
-      const yd = DATA.historical_years[yr];
+      const yd = (series.historical || {})[yr];
       if (!yd) return;
-      const pts = yd.dates.map((d, j) => ({ x: d, y: yd.swe[j] }));
-      window.sweChart.data.datasets.push({
+      datasets.push({
         label: `WY ${yr}`,
-        data: pts,
+        data: yd.dates.map((d, j) => ({ x: d, y: yd.swe[j] })),
         borderColor: histColors[i % histColors.length],
         borderWidth: 1,
         fill: false,
         pointRadius: 0,
-        tension: 0.15,
-        order: 6,
-        _isHistorical: true,
+        tension: 0.12,
       });
     });
-  } else {
-    yearSelect.style.display = 'none';
   }
-  window.sweChart.update();
+
+  return datasets;
 }
 
-histToggle.addEventListener('change', updateHistoricalYears);
-yearSelect.addEventListener('change', updateHistoricalYears);
+async function renderMainChart() {
+  const meta = METRIC_META[currentMetric];
+  const chartTitle = document.getElementById('chart-title');
+  chartTitle.textContent = `${meta.title} — ${currentRegion}`;
+
+  const legend = document.getElementById('chart-legend');
+  legend.style.display = 'flex';
+
+  let datasets = [];
+  let yLabel = meta.unit;
+
+  if (currentMetric === 'swe') {
+    datasets = buildSweDatasets(currentRegion);
+    yLabel = 'SWE (inches)';
+  } else if (currentMetric === 'overall') {
+    const scorePts = computeOverallScoreSeries(currentRegion) || [];
+    datasets = [{
+      label: `Overall Score (${currentRegion})`,
+      data: scorePts,
+      borderColor: METRIC_META.overall.color,
+      borderWidth: 2.4,
+      fill: false,
+      pointRadius: 0,
+      tension: 0.2,
+    }];
+    if (histToggle.checked) {
+      const series = getRegionSeries(currentRegion);
+      const selected = Array.from(yearSelect.selectedOptions).map(o => o.value);
+      selected.forEach((yr, i) => {
+        const yd = (series.historical || {})[yr];
+        if (!yd) return;
+        const fauxCurrent = { dates: yd.dates, swe: yd.swe };
+        const byDoy = {};
+        Object.values(series.historical || {}).forEach(cur => (cur.swe || []).forEach((v, idx) => { if (!byDoy[idx]) byDoy[idx] = []; byDoy[idx].push(v); }));
+        Object.values(byDoy).forEach(arr => arr.sort((a,b)=>a-b));
+        const pts = fauxCurrent.dates.map((d, idx) => ({ x: d, y: percentileRank(byDoy[idx] || [], fauxCurrent.swe[idx]) ?? 50 }));
+        datasets.push({
+          label: `WY ${yr} Score`,
+          data: pts,
+          borderColor: histColors[i % histColors.length],
+          borderWidth: 1,
+          fill: false,
+          pointRadius: 0,
+          tension: 0.1,
+        });
+      });
+    }
+    yLabel = 'Score (0-100)';
+  } else {
+    const key = `${currentRegion}`;
+    if (!cachedWeather[key]) cachedWeather[key] = await fetchBasinRecentConditions(currentRegion);
+    const weather = cachedWeather[key];
+    const mapFn = currentMetric === 'temp'
+      ? (p) => Number.isFinite(p.temp) ? (p.temp * 9 / 5 + 32) : null
+      : currentMetric === 'wind'
+        ? (p) => Number.isFinite(p.wind) ? (p.wind * 0.621371) : null
+        : (p) => Number.isFinite(p.soil) ? (p.soil * 100) : null;
+
+    datasets = [{
+      label: `${meta.title} (${currentRegion})`,
+      data: weather.map(p => ({ x: p.x, y: mapFn(p) })).filter(p => p.y != null),
+      borderColor: meta.color,
+      borderWidth: 2,
+      fill: false,
+      pointRadius: 0,
+      tension: 0.2,
+    }];
+    yLabel = meta.unit;
+  }
+
+  if (window.sweChart) window.sweChart.destroy();
+
+  const ctx = document.getElementById('swe-chart').getContext('2d');
+  window.sweChart = new Chart(ctx, {
+    type: 'line',
+    data: { datasets },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      scales: {
+        x: {
+          type: 'time',
+          time: { unit: currentMetric === 'swe' || currentMetric === 'overall' ? 'month' : 'day' },
+          grid: { color: 'rgba(255,255,255,0.04)' },
+          ticks: { color: '#556677', font: { family: 'Barlow Condensed', size: 12 } },
+        },
+        y: {
+          beginAtZero: currentMetric !== 'temp',
+          max: currentMetric === 'overall' ? 100 : undefined,
+          title: {
+            display: true,
+            text: yLabel,
+            color: '#556677',
+            font: { family: 'Barlow Condensed', size: 12 },
+          },
+          grid: { color: 'rgba(255,255,255,0.04)' },
+          ticks: { color: '#556677', font: { family: 'Barlow Condensed', size: 12 } },
+        },
+      },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#111D2E',
+          borderColor: '#1E3048',
+          borderWidth: 1,
+          titleColor: '#E8EDF3',
+          bodyColor: '#8899AE',
+          titleFont: { family: 'Barlow Condensed', weight: '600' },
+          bodyFont: { family: 'DM Sans' },
+          padding: 12,
+          callbacks: {
+            label: (ctx) => `${ctx.dataset.label}: ${ctx.parsed.y.toFixed( currentMetric === 'overall' ? 0 : 2 )} ${currentMetric === 'overall' ? '' : meta.unit}`.trim(),
+          },
+        },
+      },
+    },
+  });
+
+  legend.innerHTML = datasets.map(ds => `
+    <div class="legend-item">
+      <span class="legend-swatch" style="background:${ds.borderColor};"></span>
+      ${ds.label}
+    </div>
+  `).join('');
+
+  const sweMode = currentMetric === 'swe' || currentMetric === 'overall';
+  histToggle.parentElement.style.display = sweMode ? '' : 'none';
+  yearSelect.style.display = sweMode && histToggle.checked ? 'block' : 'none';
+}
+
+metricSelect.addEventListener('change', async (e) => {
+  currentMetric = e.target.value;
+  await renderMainChart();
+});
+regionSelect.addEventListener('change', async (e) => {
+  currentRegion = e.target.value;
+  await renderMainChart();
+});
+histToggle.addEventListener('change', async () => {
+  yearSelect.style.display = histToggle.checked ? 'block' : 'none';
+  await renderMainChart();
+});
+yearSelect.addEventListener('change', renderMainChart);
+
+renderMainChart();
+
+// Historical comparison note (replacing record-low legend behavior)
+document.getElementById('record-low-legend').textContent = 'Historical overlays selectable (left controls)';
 
 // ============================================================
+
 // Catch-Up Panel
 // ============================================================
 

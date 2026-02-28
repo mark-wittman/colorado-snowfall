@@ -33,6 +33,8 @@ forecast updates automatically each time you open the dashboard (fetched live).
 - **7-day forecast**: Expected mountain snowfall from 4 CO locations (Open-Meteo)
 - **Basin breakdown**: Per-basin SWE stats for 6 Colorado river basins
 - **Basin conditions**: Per-basin 24h average temperature, wind, and near-surface soil moisture (Open-Meteo)
+- **Multi-factor charting**: Toggle chart metric between SWE, overall score, temperature, wind, and soil moisture
+- **Region scope toggle**: Switch between Colorado statewide and basin-specific views with historical overlays for SWE/score
 
 ## Data Sources
 
