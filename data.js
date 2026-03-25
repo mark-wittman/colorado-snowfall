@@ -1,5 +1,5 @@
 const DATA = {
-  "generated_at": "2026-03-24T15:06:48",
+  "generated_at": "2026-03-25T15:07:05",
   "water_year": 2026,
   "stations": {
     "count": 119,
@@ -1134,7 +1134,8 @@ const DATA = {
       "2026-03-21",
       "2026-03-22",
       "2026-03-23",
-      "2026-03-24"
+      "2026-03-24",
+      "2026-03-25"
     ],
     "swe": [
       0.0,
@@ -1310,8 +1311,9 @@ const DATA = {
       7.48,
       7.09,
       6.62,
-      6.23,
-      5.89
+      6.24,
+      5.97,
+      5.49
     ],
     "median": [
       0.0,
@@ -1488,7 +1490,8 @@ const DATA = {
       14.13,
       14.15,
       14.18,
-      14.25
+      14.29,
+      14.38
     ]
   },
   "median_full_season": {
@@ -1943,8 +1946,8 @@ const DATA = {
       14.13,
       14.15,
       14.18,
-      14.25,
-      14.87,
+      14.29,
+      14.38,
       14.87,
       14.9,
       14.97,
@@ -23320,23 +23323,22 @@ const DATA = {
     }
   },
   "summary": {
-    "today": "2026-03-24",
-    "current_swe": 5.89,
-    "median_swe_today": 14.25,
-    "deficit_inches": 8.36,
-    "pct_of_median": 41.3,
+    "today": "2026-03-25",
+    "current_swe": 5.49,
+    "median_swe_today": 14.38,
+    "deficit_inches": 8.89,
+    "pct_of_median": 38.2,
     "median_peak_swe": 16.15,
     "median_peak_date": "2026-04-05",
-    "days_to_peak": 12,
-    "swe_needed_for_peak": 10.26,
-    "daily_rate_needed": 0.855,
-    "actual_daily_rate_30d": -0.051,
-    "pct_of_normal_remaining_needed": 540.0,
-    "recent_accumulation_30d": -1.53
+    "days_to_peak": 11,
+    "swe_needed_for_peak": 10.66,
+    "daily_rate_needed": 0.9691,
+    "actual_daily_rate_30d": -0.0663,
+    "pct_of_normal_remaining_needed": 602.3,
+    "recent_accumulation_30d": -1.99
   },
   "catchup_projection": {
     "dates": [
-      "2026-03-24",
       "2026-03-25",
       "2026-03-26",
       "2026-03-27",
@@ -23351,63 +23353,62 @@ const DATA = {
       "2026-04-05"
     ],
     "swe": [
-      5.89,
-      6.74,
-      7.6,
-      8.46,
-      9.31,
-      10.16,
-      11.02,
-      11.88,
-      12.73,
-      13.59,
-      14.44,
-      15.29,
+      5.49,
+      6.46,
+      7.43,
+      8.4,
+      9.37,
+      10.34,
+      11.3,
+      12.27,
+      13.24,
+      14.21,
+      15.18,
       16.15
     ]
   },
   "basins": {
     "Gunnison": {
       "station_count": 12,
-      "current_swe": 4.48,
-      "median_swe_today": 13.7,
-      "pct_of_median": 32.7,
-      "deficit_inches": 9.22
+      "current_swe": 3.82,
+      "median_swe_today": 13.73,
+      "pct_of_median": 27.8,
+      "deficit_inches": 9.91
     },
     "Rio Grande": {
       "station_count": 15,
-      "current_swe": 2.71,
-      "median_swe_today": 10.17,
-      "pct_of_median": 26.6,
-      "deficit_inches": 7.46
+      "current_swe": 2.38,
+      "median_swe_today": 10.22,
+      "pct_of_median": 23.3,
+      "deficit_inches": 7.84
     },
     "San Juan / Animas": {
       "station_count": 12,
-      "current_swe": 4.85,
+      "current_swe": 4.22,
       "median_swe_today": 17.76,
-      "pct_of_median": 27.3,
-      "deficit_inches": 12.91
+      "pct_of_median": 23.8,
+      "deficit_inches": 13.54
     },
     "South Platte": {
       "station_count": 20,
-      "current_swe": 7.1,
-      "median_swe_today": 12.09,
-      "pct_of_median": 58.7,
-      "deficit_inches": 4.99
+      "current_swe": 6.66,
+      "median_swe_today": 12.17,
+      "pct_of_median": 54.7,
+      "deficit_inches": 5.51
     },
     "Upper Colorado": {
       "station_count": 30,
-      "current_swe": 7.12,
-      "median_swe_today": 14.88,
-      "pct_of_median": 47.8,
-      "deficit_inches": 7.76
+      "current_swe": 6.82,
+      "median_swe_today": 15.02,
+      "pct_of_median": 45.4,
+      "deficit_inches": 8.2
     },
     "Yampa / White": {
       "station_count": 11,
-      "current_swe": 8.64,
-      "median_swe_today": 19.76,
-      "pct_of_median": 43.7,
-      "deficit_inches": 11.12
+      "current_swe": 8.12,
+      "median_swe_today": 19.78,
+      "pct_of_median": 41.1,
+      "deficit_inches": 11.66
     }
   },
   "basin_current_series": {
@@ -23587,7 +23588,8 @@ const DATA = {
         "2026-03-21",
         "2026-03-22",
         "2026-03-23",
-        "2026-03-24"
+        "2026-03-24",
+        "2026-03-25"
       ],
       "swe": [
         0.0,
@@ -23764,7 +23766,8 @@ const DATA = {
         6.08,
         5.42,
         4.86,
-        4.48
+        4.48,
+        3.82
       ],
       "median": [
         0.0,
@@ -23941,7 +23944,8 @@ const DATA = {
         13.5,
         13.51,
         13.56,
-        13.7
+        13.7,
+        13.73
       ]
     },
     "Rio Grande": {
@@ -24120,7 +24124,8 @@ const DATA = {
         "2026-03-21",
         "2026-03-22",
         "2026-03-23",
-        "2026-03-24"
+        "2026-03-24",
+        "2026-03-25"
       ],
       "swe": [
         0.0,
@@ -24296,8 +24301,9 @@ const DATA = {
         3.89,
         3.52,
         3.23,
-        2.95,
-        2.71
+        2.96,
+        2.7,
+        2.38
       ],
       "median": [
         0.0,
@@ -24474,7 +24480,8 @@ const DATA = {
         10.3,
         10.33,
         10.25,
-        10.17
+        10.17,
+        10.22
       ]
     },
     "San Juan / Animas": {
@@ -24653,7 +24660,8 @@ const DATA = {
         "2026-03-21",
         "2026-03-22",
         "2026-03-23",
-        "2026-03-24"
+        "2026-03-24",
+        "2026-03-25"
       ],
       "swe": [
         0.0,
@@ -24830,7 +24838,8 @@ const DATA = {
         6.27,
         5.67,
         5.21,
-        4.85
+        4.85,
+        4.22
       ],
       "median": [
         0.0,
@@ -25007,6 +25016,7 @@ const DATA = {
         17.67,
         17.72,
         17.73,
+        17.76,
         17.76
       ]
     },
@@ -25186,7 +25196,8 @@ const DATA = {
         "2026-03-21",
         "2026-03-22",
         "2026-03-23",
-        "2026-03-24"
+        "2026-03-24",
+        "2026-03-25"
       ],
       "swe": [
         0.0,
@@ -25363,7 +25374,8 @@ const DATA = {
         7.89,
         7.57,
         7.3,
-        7.1
+        7.1,
+        6.66
       ],
       "median": [
         0.0,
@@ -25540,7 +25552,8 @@ const DATA = {
         11.92,
         11.93,
         11.96,
-        12.09
+        12.09,
+        12.17
       ]
     },
     "Upper Colorado": {
@@ -25719,7 +25732,8 @@ const DATA = {
         "2026-03-21",
         "2026-03-22",
         "2026-03-23",
-        "2026-03-24"
+        "2026-03-24",
+        "2026-03-25"
       ],
       "swe": [
         0.0,
@@ -25896,7 +25910,8 @@ const DATA = {
         8.26,
         7.87,
         7.49,
-        7.12
+        7.28,
+        6.82
       ],
       "median": [
         0.0,
@@ -26073,7 +26088,8 @@ const DATA = {
         14.56,
         14.62,
         14.68,
-        14.88
+        14.88,
+        15.02
       ]
     },
     "Yampa / White": {
@@ -26252,7 +26268,8 @@ const DATA = {
         "2026-03-21",
         "2026-03-22",
         "2026-03-23",
-        "2026-03-24"
+        "2026-03-24",
+        "2026-03-25"
       ],
       "swe": [
         0.0,
@@ -26429,7 +26446,8 @@ const DATA = {
         10.31,
         9.55,
         9.06,
-        8.64
+        8.75,
+        8.12
       ],
       "median": [
         0.0,
@@ -26606,7 +26624,8 @@ const DATA = {
         19.47,
         19.44,
         19.51,
-        19.76
+        19.63,
+        19.78
       ]
     }
   },
