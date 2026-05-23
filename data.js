@@ -1,5 +1,5 @@
 const DATA = {
-  "generated_at": "2026-05-22T16:32:43",
+  "generated_at": "2026-05-23T15:07:04",
   "water_year": 2026,
   "stations": {
     "count": 119,
@@ -1193,7 +1193,8 @@ const DATA = {
       "2026-05-19",
       "2026-05-20",
       "2026-05-21",
-      "2026-05-22"
+      "2026-05-22",
+      "2026-05-23"
     ],
     "swe": [
       0.0,
@@ -1429,7 +1430,8 @@ const DATA = {
       1.27,
       1.3,
       1.25,
-      1.26
+      1.26,
+      1.14
     ],
     "median": [
       0.0,
@@ -1665,7 +1667,8 @@ const DATA = {
       6.88,
       6.66,
       6.27,
-      5.84
+      5.84,
+      5.43
     ]
   },
   "median_full_season": {
@@ -2180,7 +2183,7 @@ const DATA = {
       6.66,
       6.27,
       5.84,
-      6.51,
+      5.43,
       6.12,
       5.63,
       5.22,
@@ -23497,27 +23500,27 @@ const DATA = {
     }
   },
   "summary": {
-    "today": "2026-05-22",
-    "current_swe": 1.26,
-    "median_swe_today": 5.84,
-    "deficit_inches": 4.58,
-    "pct_of_median": 21.6,
+    "today": "2026-05-23",
+    "current_swe": 1.14,
+    "median_swe_today": 5.43,
+    "deficit_inches": 4.29,
+    "pct_of_median": 21.0,
     "median_peak_swe": 15.99,
     "median_peak_date": "2026-04-08",
     "days_to_peak": 1,
-    "swe_needed_for_peak": 14.73,
-    "daily_rate_needed": 14.73,
-    "actual_daily_rate_30d": -0.0467,
-    "pct_of_normal_remaining_needed": 156.9,
-    "recent_accumulation_30d": -1.4
+    "swe_needed_for_peak": 14.85,
+    "daily_rate_needed": 14.85,
+    "actual_daily_rate_30d": -0.0457,
+    "pct_of_normal_remaining_needed": 151.5,
+    "recent_accumulation_30d": -1.37
   },
   "catchup_projection": {
     "dates": [
-      "2026-05-22",
-      "2026-05-23"
+      "2026-05-23",
+      "2026-05-24"
     ],
     "swe": [
-      1.26,
+      1.14,
       15.99
     ]
   },
@@ -23525,44 +23528,44 @@ const DATA = {
     "Gunnison": {
       "station_count": 12,
       "current_swe": 0.54,
-      "median_swe_today": 2.25,
-      "pct_of_median": 24.0,
-      "deficit_inches": 1.71
+      "median_swe_today": 2.01,
+      "pct_of_median": 26.9,
+      "deficit_inches": 1.47
     },
     "Rio Grande": {
       "station_count": 15,
-      "current_swe": 0.09,
-      "median_swe_today": 1.88,
-      "pct_of_median": 4.8,
-      "deficit_inches": 1.79
+      "current_swe": 0.11,
+      "median_swe_today": 1.65,
+      "pct_of_median": 6.7,
+      "deficit_inches": 1.54
     },
     "San Juan / Animas": {
       "station_count": 12,
-      "current_swe": 0.02,
-      "median_swe_today": 5.97,
-      "pct_of_median": 0.3,
-      "deficit_inches": 5.95
+      "current_swe": 0.03,
+      "median_swe_today": 5.66,
+      "pct_of_median": 0.5,
+      "deficit_inches": 5.63
     },
     "South Platte": {
       "station_count": 20,
-      "current_swe": 1.93,
-      "median_swe_today": 8.12,
-      "pct_of_median": 23.8,
-      "deficit_inches": 6.19
+      "current_swe": 1.62,
+      "median_swe_today": 7.67,
+      "pct_of_median": 21.1,
+      "deficit_inches": 6.05
     },
     "Upper Colorado": {
       "station_count": 30,
-      "current_swe": 1.32,
-      "median_swe_today": 7.9,
-      "pct_of_median": 16.7,
-      "deficit_inches": 6.58
+      "current_swe": 1.14,
+      "median_swe_today": 7.13,
+      "pct_of_median": 16.0,
+      "deficit_inches": 5.99
     },
     "Yampa / White": {
       "station_count": 11,
-      "current_swe": 3.03,
-      "median_swe_today": 9.79,
-      "pct_of_median": 30.9,
-      "deficit_inches": 6.76
+      "current_swe": 2.93,
+      "median_swe_today": 9.53,
+      "pct_of_median": 30.7,
+      "deficit_inches": 6.6
     }
   },
   "basin_current_series": {
@@ -23801,7 +23804,8 @@ const DATA = {
         "2026-05-19",
         "2026-05-20",
         "2026-05-21",
-        "2026-05-22"
+        "2026-05-22",
+        "2026-05-23"
       ],
       "swe": [
         0.0,
@@ -24037,6 +24041,7 @@ const DATA = {
         0.66,
         0.57,
         0.56,
+        0.54,
         0.54
       ],
       "median": [
@@ -24273,7 +24278,8 @@ const DATA = {
         3.5,
         3.03,
         2.62,
-        2.25
+        2.25,
+        2.01
       ]
     },
     "Rio Grande": {
@@ -24511,7 +24517,8 @@ const DATA = {
         "2026-05-19",
         "2026-05-20",
         "2026-05-21",
-        "2026-05-22"
+        "2026-05-22",
+        "2026-05-23"
       ],
       "swe": [
         0.0,
@@ -24747,7 +24754,8 @@ const DATA = {
         0.12,
         0.16,
         0.11,
-        0.09
+        0.09,
+        0.11
       ],
       "median": [
         0.0,
@@ -24983,7 +24991,8 @@ const DATA = {
         2.49,
         2.34,
         2.06,
-        1.88
+        1.88,
+        1.65
       ]
     },
     "San Juan / Animas": {
@@ -25221,7 +25230,8 @@ const DATA = {
         "2026-05-19",
         "2026-05-20",
         "2026-05-21",
-        "2026-05-22"
+        "2026-05-22",
+        "2026-05-23"
       ],
       "swe": [
         0.0,
@@ -25457,7 +25467,8 @@ const DATA = {
         0.23,
         0.09,
         0.02,
-        0.02
+        0.02,
+        0.03
       ],
       "median": [
         0.0,
@@ -25693,7 +25704,8 @@ const DATA = {
         8.04,
         7.58,
         7.06,
-        5.97
+        5.97,
+        5.66
       ]
     },
     "South Platte": {
@@ -25931,7 +25943,8 @@ const DATA = {
         "2026-05-19",
         "2026-05-20",
         "2026-05-21",
-        "2026-05-22"
+        "2026-05-22",
+        "2026-05-23"
       ],
       "swe": [
         0.0,
@@ -26167,7 +26180,8 @@ const DATA = {
         1.74,
         1.98,
         1.99,
-        1.93
+        1.93,
+        1.62
       ],
       "median": [
         0.0,
@@ -26403,7 +26417,8 @@ const DATA = {
         9.5,
         9.17,
         8.69,
-        8.12
+        8.12,
+        7.67
       ]
     },
     "Upper Colorado": {
@@ -26641,7 +26656,8 @@ const DATA = {
         "2026-05-19",
         "2026-05-20",
         "2026-05-21",
-        "2026-05-22"
+        "2026-05-22",
+        "2026-05-23"
       ],
       "swe": [
         0.0,
@@ -26877,7 +26893,8 @@ const DATA = {
         1.38,
         1.36,
         1.29,
-        1.32
+        1.32,
+        1.14
       ],
       "median": [
         0.0,
@@ -27113,7 +27130,8 @@ const DATA = {
         8.73,
         8.41,
         8.05,
-        7.9
+        7.9,
+        7.13
       ]
     },
     "Yampa / White": {
@@ -27350,7 +27368,8 @@ const DATA = {
         "2026-05-18",
         "2026-05-20",
         "2026-05-21",
-        "2026-05-22"
+        "2026-05-22",
+        "2026-05-23"
       ],
       "swe": [
         0.0,
@@ -27585,7 +27604,8 @@ const DATA = {
         2.78,
         2.88,
         2.81,
-        3.03
+        3.03,
+        2.93
       ],
       "median": [
         0.0,
@@ -27820,7 +27840,8 @@ const DATA = {
         11.53,
         10.55,
         10.18,
-        9.79
+        9.79,
+        9.53
       ]
     }
   },
