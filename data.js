@@ -1,5 +1,5 @@
 const DATA = {
-  "generated_at": "2026-08-30T18:02:21",
+  "generated_at": "2026-08-31T19:55:27",
   "water_year": 2026,
   "stations": {
     "count": 121,
@@ -1309,7 +1309,8 @@ const DATA = {
       "2026-08-27",
       "2026-08-28",
       "2026-08-29",
-      "2026-08-30"
+      "2026-08-30",
+      "2026-08-31"
     ],
     "swe": [
       0.0,
@@ -1642,8 +1643,9 @@ const DATA = {
       0.0,
       0.01,
       0.01,
-      0.03,
-      0.06,
+      0.02,
+      0.04,
+      0.05,
       0.06,
       0.07
     ],
@@ -1916,6 +1918,7 @@ const DATA = {
       0.06,
       0.04,
       0.02,
+      0.0,
       0.0,
       0.0,
       0.0,
@@ -23813,7 +23816,7 @@ const DATA = {
     }
   },
   "summary": {
-    "today": "2026-08-30",
+    "today": "2026-08-31",
     "current_swe": 0.07,
     "median_swe_today": 0.0,
     "deficit_inches": -0.07,
@@ -23829,8 +23832,8 @@ const DATA = {
   },
   "catchup_projection": {
     "dates": [
-      "2026-08-30",
-      "2026-08-31"
+      "2026-08-31",
+      "2026-09-01"
     ],
     "swe": [
       0.07,
@@ -23840,45 +23843,45 @@ const DATA = {
   "basins": {
     "Gunnison": {
       "station_count": 14,
-      "current_swe": 0.06,
+      "current_swe": 0.05,
       "median_swe_today": 0.0,
       "pct_of_median": 0,
-      "deficit_inches": -0.06
+      "deficit_inches": -0.05
     },
     "Rio Grande": {
       "station_count": 15,
-      "current_swe": 0.07,
-      "median_swe_today": 0.0,
-      "pct_of_median": 0,
-      "deficit_inches": -0.07
-    },
-    "San Juan / Animas": {
-      "station_count": 12,
-      "current_swe": 0.09,
-      "median_swe_today": 0.0,
-      "pct_of_median": 0,
-      "deficit_inches": -0.09
-    },
-    "South Platte": {
-      "station_count": 20,
       "current_swe": 0.1,
       "median_swe_today": 0.0,
       "pct_of_median": 0,
       "deficit_inches": -0.1
     },
-    "Upper Colorado": {
-      "station_count": 30,
-      "current_swe": 0.08,
-      "median_swe_today": 0.0,
-      "pct_of_median": 0,
-      "deficit_inches": -0.08
-    },
-    "Yampa / White": {
-      "station_count": 11,
+    "San Juan / Animas": {
+      "station_count": 12,
       "current_swe": 0.02,
       "median_swe_today": 0.0,
       "pct_of_median": 0,
       "deficit_inches": -0.02
+    },
+    "South Platte": {
+      "station_count": 20,
+      "current_swe": 0.12,
+      "median_swe_today": 0.0,
+      "pct_of_median": 0,
+      "deficit_inches": -0.12
+    },
+    "Upper Colorado": {
+      "station_count": 30,
+      "current_swe": 0.09,
+      "median_swe_today": 0.0,
+      "pct_of_median": 0,
+      "deficit_inches": -0.09
+    },
+    "Yampa / White": {
+      "station_count": 11,
+      "current_swe": 0.01,
+      "median_swe_today": 0.0,
+      "pct_of_median": 0,
+      "deficit_inches": -0.01
     }
   },
   "basin_current_series": {
@@ -24217,7 +24220,8 @@ const DATA = {
         "2026-08-27",
         "2026-08-28",
         "2026-08-29",
-        "2026-08-30"
+        "2026-08-30",
+        "2026-08-31"
       ],
       "swe": [
         0.0,
@@ -24550,10 +24554,11 @@ const DATA = {
         0.0,
         0.0,
         0.01,
-        0.01,
+        0.0,
         0.05,
         0.06,
-        0.06
+        0.06,
+        0.05
       ],
       "median": [
         0.0,
@@ -24808,6 +24813,7 @@ const DATA = {
         0.22,
         0.14,
         0.08,
+        0.0,
         0.0,
         0.0,
         0.0,
@@ -25227,7 +25233,8 @@ const DATA = {
         "2026-08-27",
         "2026-08-28",
         "2026-08-29",
-        "2026-08-30"
+        "2026-08-30",
+        "2026-08-31"
       ],
       "swe": [
         0.0,
@@ -25563,7 +25570,8 @@ const DATA = {
         0.06,
         0.05,
         0.07,
-        0.07
+        0.07,
+        0.1
       ],
       "median": [
         0.0,
@@ -25811,6 +25819,7 @@ const DATA = {
         0.08,
         0.05,
         0.03,
+        0.0,
         0.0,
         0.0,
         0.0,
@@ -26237,7 +26246,8 @@ const DATA = {
         "2026-08-27",
         "2026-08-28",
         "2026-08-29",
-        "2026-08-30"
+        "2026-08-30",
+        "2026-08-31"
       ],
       "swe": [
         0.0,
@@ -26570,10 +26580,11 @@ const DATA = {
         0.0,
         0.02,
         0.02,
-        0.1,
-        0.1,
-        0.09,
-        0.09
+        0.03,
+        0.03,
+        0.03,
+        0.02,
+        0.02
       ],
       "median": [
         0.0,
@@ -26839,6 +26850,7 @@ const DATA = {
         0.1,
         0.05,
         0.02,
+        0.0,
         0.0,
         0.0,
         0.0,
@@ -27247,7 +27259,8 @@ const DATA = {
         "2026-08-27",
         "2026-08-28",
         "2026-08-29",
-        "2026-08-30"
+        "2026-08-30",
+        "2026-08-31"
       ],
       "swe": [
         0.0,
@@ -27583,7 +27596,8 @@ const DATA = {
         0.01,
         0.1,
         0.09,
-        0.1
+        0.1,
+        0.12
       ],
       "median": [
         0.0,
@@ -27847,6 +27861,7 @@ const DATA = {
         0.09,
         0.05,
         0.02,
+        0.0,
         0.0,
         0.0,
         0.0,
@@ -28257,7 +28272,8 @@ const DATA = {
         "2026-08-27",
         "2026-08-28",
         "2026-08-29",
-        "2026-08-30"
+        "2026-08-30",
+        "2026-08-31"
       ],
       "swe": [
         0.0,
@@ -28593,7 +28609,8 @@ const DATA = {
         0.02,
         0.05,
         0.06,
-        0.08
+        0.08,
+        0.09
       ],
       "median": [
         0.0,
@@ -28861,6 +28878,7 @@ const DATA = {
         0.1,
         0.05,
         0.02,
+        0.0,
         0.0,
         0.0,
         0.0,
@@ -29267,7 +29285,8 @@ const DATA = {
         "2026-08-27",
         "2026-08-28",
         "2026-08-29",
-        "2026-08-30"
+        "2026-08-30",
+        "2026-08-31"
       ],
       "swe": [
         0.0,
@@ -29603,7 +29622,8 @@ const DATA = {
         0.0,
         0.0,
         0.0,
-        0.02
+        0.02,
+        0.01
       ],
       "median": [
         0.0,
@@ -29875,6 +29895,7 @@ const DATA = {
         0.44,
         0.24,
         0.02,
+        0.0,
         0.0,
         0.0,
         0.0,
